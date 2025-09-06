@@ -9,11 +9,12 @@
     "typeorm": "^0.3.26"
   },
   "devDependencies": {
+    "@types/cors": "^2.8.19",
     "@types/express": "^5.0.3",
     "@types/node": "^24.3.1",
     "nodemon": "^3.1.10",
-    "typescript": "^5.9.2",
-    "typeorm": "^0.3.26"
+    "typeorm": "^0.3.26",
+    "typescript": "^5.9.2"
   },
   "scripts": {
     "build": "tsc",

@@ -1,9 +1,15 @@
+import cors from "cors";
 import express from "express";
 import "reflect-metadata";
 import { AppDataSource } from "./dataSource";
 import gamesRouter from "./routes/games";
 
 const app = express();
+
+// Enable CORS for all origins (or you can restrict it)
+app.use(cors());
+
+// Parse JSON bodies
 app.use(express.json());
 
 AppDataSource.initialize()
