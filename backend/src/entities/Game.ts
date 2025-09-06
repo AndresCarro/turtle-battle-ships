@@ -1,6 +1,13 @@
 import { Column, Entity, OneToMany, PrimaryGeneratedColumn } from "typeorm";
-import { Fleet } from "./Fleet";
+import { Ship } from "./Ship";
 import { Shot } from "./Shot";
+
+export enum GameStatus {
+  WAITING_FOR_PLAYER = "WAITING_FOR_PLAYER",
+  SHIPS_SETUP = "SETTING_UP_SHIPS",
+  IN_PROGRESS = "PLAYING",
+  FINISHED = "FINISHED",
+}
 
 @Entity()
 export class Game {
@@ -13,12 +20,16 @@ export class Game {
   @Column({ nullable: true })
   player2!: string;
 
-  @Column()
-  status!: string;
+  @Column({
+    type: "enum",
+    enum: GameStatus,
+    default: GameStatus.WAITING_FOR_PLAYER,
+  })
+  status!: GameStatus;
 
-  @OneToMany(() => Fleet, (fleet) => fleet.game)
-  fleets!: Fleet[];
+  @OneToMany(() => Ship, (ship) => ship.game, { cascade: true })
+  ships!: Ship[];
 
-  @OneToMany(() => Shot, (shot) => shot.game)
+  @OneToMany(() => Shot, (shot) => shot.game, { cascade: true })
   shots!: Shot[];
 }

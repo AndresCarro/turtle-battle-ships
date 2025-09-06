@@ -59,21 +59,27 @@ export const getGame = async (req: Request, res: Response) => {
 export const postFleet = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const { username, ships } = req.body;
-    if (!username || !ships)
-      return res.status(400).json({ error: "username and ships are required" });
-    const fleet = await postFleetService(Number(id), username, ships);
-    res.json(fleet);
+    const { player, ships } = req.body;
+
+    if (!player || !ships)
+      return res.status(400).json({ error: "player and ships are required" });
+
+    const savedShips = await postFleetService(Number(id), player, ships);
+    res.json(savedShips);
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    res.status(400).json({ error: err.message });
   }
 };
 
 export const getFleets = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const fleets = await getFleetsService(Number(id));
-    res.json(fleets);
+    const { player } = req.query;
+    const ships = await getFleetsService(
+      Number(id),
+      player as string | undefined
+    );
+    res.json(ships);
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }

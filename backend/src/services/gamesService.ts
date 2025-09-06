@@ -1,10 +1,10 @@
 import { AppDataSource } from "../dataSource";
-import { Fleet } from "../entities/Fleet";
-import { Game } from "../entities/Game";
+import { Game, GameStatus } from "../entities/Game";
+import { getShipTypeSize, Orientation, Ship, ShipType } from "../entities/Ship";
 import { Shot } from "../entities/Shot";
 
 const gameRepository = AppDataSource.getRepository(Game);
-const fleetRepository = AppDataSource.getRepository(Fleet);
+const shipRepository = AppDataSource.getRepository(Ship);
 const shotRepository = AppDataSource.getRepository(Shot);
 
 export const createGameService = async (username: string) => {
@@ -18,18 +18,18 @@ export const joinGameService = async (id: number, username: string) => {
   if (game.player2) throw new Error("Game already has two players");
 
   game.player2 = username;
-  game.status = "IN_PROGRESS";
+  game.status = GameStatus.SHIPS_SETUP;
   return gameRepository.save(game);
 };
 
 export const listGamesService = async () => {
-  return gameRepository.find({ where: { status: "IN_PROGRESS" } });
+  return gameRepository.find();
 };
 
 export const getGameService = async (id: number) => {
   const game = await gameRepository.findOne({
     where: { id },
-    relations: ["fleets", "shots"],
+    relations: ["ships", "shots"],
   });
   if (!game) throw new Error("Game not found");
   return game;
@@ -37,19 +37,58 @@ export const getGameService = async (id: number) => {
 
 export const postFleetService = async (
   id: number,
-  username: string,
-  ships: any[]
-) => {
-  const fleet = fleetRepository.create({
-    player: username,
-    ships,
-    game: { id } as Game,
+  player: string,
+  shipsInput: {
+    type: ShipType;
+    x: number;
+    y: number;
+    orientation: Orientation;
+  }[]
+): Promise<Ship[]> => {
+  const game = await gameRepository.findOne({
+    where: { id },
+    relations: ["ships"],
   });
-  return fleetRepository.save(fleet);
+  if (!game) throw new Error("Game not found");
+
+  const existingShips = game.ships.filter((s) => s.player === player);
+  if (existingShips.length > 0) throw new Error("Player already placed ships");
+
+  const typeCount: Record<ShipType, number> = {
+    [ShipType.CARRIER]: 0,
+    [ShipType.BATTLESHIP]: 0,
+    [ShipType.SUBMARINE]: 0,
+    [ShipType.DESTROYER]: 0,
+  };
+
+  for (const s of shipsInput) typeCount[s.type]++;
+  for (const type of Object.keys(typeCount) as ShipType[]) {
+    if (typeCount[type] !== 2)
+      throw new Error(`Player must place exactly 2 ships of type ${type}`);
+  }
+
+  // Crear instancias de Ship correctamente tipadas
+  const ships: Ship[] = shipsInput.map((s) =>
+    shipRepository.create({
+      player,
+      type: s.type,
+      x: s.x,
+      y: s.y,
+      orientation: s.orientation,
+      length: getShipTypeSize(s.type),
+      game,
+    })
+  );
+
+  // Guardarlas en la base de datos, TypeORM devuelve Ship[]
+  const savedShips = await shipRepository.save(ships);
+  return savedShips;
 };
 
-export const getFleetsService = async (id: number) => {
-  return fleetRepository.find({ where: { game: { id } } });
+export const getFleetsService = async (id: number, player?: string) => {
+  const whereClause: any = { game: { id } };
+  if (player) whereClause.player = player;
+  return shipRepository.find({ where: whereClause });
 };
 
 export const postShotService = async (
@@ -60,19 +99,29 @@ export const postShotService = async (
 ) => {
   const game = await gameRepository.findOne({
     where: { id },
-    relations: ["fleets"],
+    relations: ["ships"],
   });
   if (!game) throw new Error("Game not found");
 
-  const opponentFleet = game.fleets.find((f) => f.player !== username);
+  // Obtener flota del oponente
+  const opponentShips = game.ships.filter((s) => s.player !== username);
+
   let hit = false;
 
-  if (opponentFleet) {
-    for (const ship of opponentFleet.ships) {
-      if (ship.positions.some((pos: any) => pos.x === x && pos.y === y)) {
-        hit = true;
-        break;
+  for (const ship of opponentShips) {
+    const shipPositions = [];
+
+    for (let i = 0; i < ship.length; i++) {
+      if (ship.orientation === Orientation.HORIZONTAL) {
+        shipPositions.push({ x: ship.x + i, y: ship.y });
+      } else {
+        shipPositions.push({ x: ship.x, y: ship.y + i });
       }
+    }
+
+    if (shipPositions.some((pos) => pos.x === x && pos.y === y)) {
+      hit = true;
+      break;
     }
   }
 
