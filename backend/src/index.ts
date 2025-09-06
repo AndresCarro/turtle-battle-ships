@@ -1,23 +1,25 @@
+import dotenv from "dotenv";
+import "reflect-metadata";
+
+// Esto tiene que ser lo primero
+dotenv.config({ path: "./.env" });
+
 import cors from "cors";
 import express from "express";
-import "reflect-metadata";
 import { AppDataSource } from "./dataSource";
 import gamesRouter from "./routes/games";
 
 const app = express();
-
-// Enable CORS for all origins (or you can restrict it)
 app.use(cors());
-
-// Parse JSON bodies
 app.use(express.json());
 
 AppDataSource.initialize()
   .then(() => {
     console.log("Data Source has been initialized!");
     app.use("/games", gamesRouter);
-    app.listen(3000, () =>
-      console.log("Server running on http://localhost:3000")
+    const PORT = process.env.PORT || 3000;
+    app.listen(PORT, () =>
+      console.log(`Server running on http://localhost:${PORT}`)
     );
   })
   .catch((err) =>
