@@ -1,25 +1,10 @@
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { gamesApi, type Game } from "@/services/games-service";
-import { createFileRoute, useSearch } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
-
-export const Route = createFileRoute("/game-rooms")({
-  validateSearch: (search: Record<string, unknown>) => {
-    return {
-      username: (search.username as string) || "",
-    };
-  },
-  component: GameRoomsPage,
-});
+import { useRouter, useSearch } from '@tanstack/react-router';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { useEffect, useState } from 'react';
+import { GameRoomService, type GameRoom } from '@/services/game-room-service';
+import { CreateGameRoomDialog } from '@/components/create-game-room-dialog';
 
 const GameRoomTableHeader = () => (
   <TableHeader>
@@ -31,35 +16,38 @@ const GameRoomTableHeader = () => (
         Room ID
       </TableHead>
     </TableRow>
-  </TableHeader>
-);
+    </TableHeader>);
 
-const EmptyGameRoomTable = () => (
-  <TableRow className="cursor-pointer hover:bg-blue-50 dark:hover:bg-blue-900/20">
-    <TableCell className="font-medium text-blue-800 dark:text-blue-200">
-      There are no game rooms available, create one!
-    </TableCell>
-  </TableRow>
-);
+const GameRoomTableRow = ({gameRoom, onClick}:{gameRoom: GameRoom; onClick: () => void;}) => 
+    <TableRow key={gameRoom.id} className="cursor-pointer hover:bg-blue-50 dark:hover:bg-blue-900/20" onClick={onClick}>
+        <TableCell className="font-medium text-blue-800 dark:text-blue-200">{gameRoom.name}</TableCell>
+        <TableCell className="text-blue-600 dark:text-blue-300">{gameRoom.id}</TableCell>
+    </TableRow>
+
+const EmptyGameRoomTable = () =>
+    <TableRow className="cursor-pointer hover:bg-blue-50 dark:hover:bg-blue-900/20">
+        <TableCell className="font-medium text-blue-800 dark:text-blue-200">There are no game rooms available, create one!</TableCell>
+    </TableRow>;
 
 export function GameRoomsPage() {
-  const [gameRooms, setGameRooms] = useState<Game[]>([]);
-  const { username } = useSearch({ from: "/game-rooms" });
+  const [gameRooms, setGameRooms] = useState<GameRoom[]>([]);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const { username } = useSearch({ from: '/game-rooms' });
+  const router = useRouter();
 
   const getGameRooms = async () => {
-    setGameRooms(await gamesApi.listGames());
-  };
+    setGameRooms(await GameRoomService.getGameRooms());
+  }
 
-  const handleCreateRoom = async () => {
-    console.log("Creating room:");
-    const gameRoomCreated = await gamesApi.createGame(username);
+  const handleCreateRoom = async (roomName: string) => {
+    console.log("Creating room:", roomName);
+    const gameRoomCreated = await GameRoomService.createGameRoom(roomName);
     if (!gameRoomCreated) {
-      return false;
+        return false;
     }
     await getGameRooms();
     return true;
   };
-
   useEffect(() => {
     getGameRooms();
   }, []);
@@ -83,7 +71,7 @@ export function GameRoomsPage() {
             <Button
               className="bg-green-600 hover:bg-green-700 text-white"
               onClick={() => {
-                handleCreateRoom();
+                setIsModalOpen(true);
               }}
             >
               Create game room
@@ -92,26 +80,27 @@ export function GameRoomsPage() {
           <Table>
             <GameRoomTableHeader />
             <TableBody>
-              {gameRooms.length === 0 ? (
-                <EmptyGameRoomTable />
-              ) : (
-                gameRooms.map((room) => (
-                  <TableRow
-                    key={room.id}
-                    className="cursor-pointer hover:bg-blue-50 dark:hover:bg-blue-900/20"
-                  >
-                    <TableCell className="font-medium text-blue-800 dark:text-blue-200">
-                      {room.player1}'s game room
-                    </TableCell>
-                    <TableCell className="text-blue-600 dark:text-blue-300">
-                      {room.id}
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
+              {gameRooms.length === 0 ? <EmptyGameRoomTable />
+              : gameRooms.map((gameRoom) => (
+                <GameRoomTableRow gameRoom={gameRoom} onClick={async() => {
+                    const joinedGameRoom = await GameRoomService.joinGameRoom(gameRoom.id);
+                    if (!joinedGameRoom) {
+                        alert("Could not join game room, try again or choose another game room.");
+                        return;
+                    }
+                    router.navigate({ 
+                        to: `/game/${gameRoom.id}`
+                    });
+                }} key={gameRoom.id}/>
+              ))}
             </TableBody>
           </Table>
         </Card>
+        <CreateGameRoomDialog
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          onCreateRoom={handleCreateRoom}
+        />
       </div>
     </main>
   );

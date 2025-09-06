@@ -1,11 +1,10 @@
-import { createFileRoute } from '@tanstack/react-router'
+import { useParams } from '@tanstack/react-router'
 import { BattleshipGame } from '@/components/battleship-game'
 
-export const Route = createFileRoute('/game/:id')({
-  component: GamePage,
-})
-
 export function GamePage() {
+  const params = useParams({ strict: false }) as { id: string };
+  const id = params.id;
+  
   return (
     <main className="p-4">
       <div className="container mx-auto max-w-6xl">
@@ -17,4 +16,4 @@ export function GamePage() {
       </div>
     </main>
   )
-}
+};

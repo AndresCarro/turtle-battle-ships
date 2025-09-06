@@ -33,7 +33,7 @@ const gameRoomsRoute = createRoute({
 
 const gameRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: '/game/:id',
+  path: '/game/$id',
   component: () => <GamePage />,
 });
 
