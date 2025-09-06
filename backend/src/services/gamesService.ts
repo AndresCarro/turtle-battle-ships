@@ -7,8 +7,8 @@ const gameRepository = AppDataSource.getRepository(Game);
 const shipRepository = AppDataSource.getRepository(Ship);
 const shotRepository = AppDataSource.getRepository(Shot);
 
-export const createGameService = async (username: string) => {
-  const game = gameRepository.create({ player1: username });
+export const createGameService = async (username: string, gameRoomName: string) => {
+  const game = gameRepository.create({ player1: username, name: gameRoomName });
   return gameRepository.save(game);
 };
 

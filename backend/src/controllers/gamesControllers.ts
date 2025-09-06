@@ -12,10 +12,10 @@ import {
 
 export const createGame = async (req: Request, res: Response) => {
   try {
-    const { username } = req.body;
-    if (!username)
+    const { gameRoomName, username } = req.body;
+    if (!username || !gameRoomName)
       return res.status(400).json({ error: "username is required" });
-    const game = await createGameService(username);
+    const game = await createGameService(username, gameRoomName);
     res.json(game);
   } catch (err: any) {
     res.status(500).json({ error: err.message });
