@@ -23,6 +23,7 @@ const GameRoomTableRow = ({gameRoom, onClick}:{gameRoom: Game; onClick: () => vo
     <TableRow key={gameRoom.id} className="cursor-pointer hover:bg-blue-50 dark:hover:bg-blue-900/20" onClick={onClick}>
         <TableCell className="font-medium text-blue-800 dark:text-blue-200">{gameRoom.name}</TableCell>
         <TableCell className="text-blue-600 dark:text-blue-300">{gameRoom.id}</TableCell>
+        {gameRoom.player1 && gameRoom.player2 ? <TableCell className="text-white">Game room is full</TableCell> : <></>}
     </TableRow>
 
 const EmptyGameRoomTable = () =>
@@ -41,12 +42,11 @@ export function GameRoomsPage() {
   }
 
   const handleCreateRoom = async (roomName: string) => {
-    console.log("Creating room:", roomName);
-    const gameRoomCreated = await GameRoomService.createGameRoom(roomName, username);
-    if (!gameRoomCreated) {
+    const gameRoom = await GameRoomService.createGameRoom(roomName, username);
+    if (!gameRoom) {
         return false;
     }
-    await getGameRooms();
+    router.navigate({to: `/game/${gameRoom.id}`});
     return true;
   };
   useEffect(() => {

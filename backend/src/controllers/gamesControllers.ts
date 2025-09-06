@@ -27,10 +27,11 @@ export const joinGame = async (req: Request, res: Response) => {
     const { username } = req.body;
     const { id } = req.params;
     const game = await joinGameService(Number(id), username);
-    res.json(game);
+    res.status(200).json(game);
   } catch (err: any) {
-    if (err.message === "Game not found")
+    if (err.message === "Game not found") {
       return res.status(404).json({ error: err.message });
+    }
     res.status(400).json({ error: err.message });
   }
 };
