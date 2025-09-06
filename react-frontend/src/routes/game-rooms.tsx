@@ -3,8 +3,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useEffect, useState } from 'react';
-import { GameRoomService, type GameRoom } from '@/services/game-room-service';
+import { GameRoomService } from '@/services/game-room-service';
 import { CreateGameRoomDialog } from '@/components/create-game-room-dialog';
+import type { Game } from '@/models/models';
 
 const GameRoomTableHeader = () => (
   <TableHeader>
@@ -18,7 +19,7 @@ const GameRoomTableHeader = () => (
     </TableRow>
     </TableHeader>);
 
-const GameRoomTableRow = ({gameRoom, onClick}:{gameRoom: GameRoom; onClick: () => void;}) => 
+const GameRoomTableRow = ({gameRoom, onClick}:{gameRoom: Game; onClick: () => void;}) => 
     <TableRow key={gameRoom.id} className="cursor-pointer hover:bg-blue-50 dark:hover:bg-blue-900/20" onClick={onClick}>
         <TableCell className="font-medium text-blue-800 dark:text-blue-200">{gameRoom.name}</TableCell>
         <TableCell className="text-blue-600 dark:text-blue-300">{gameRoom.id}</TableCell>
@@ -30,7 +31,7 @@ const EmptyGameRoomTable = () =>
     </TableRow>;
 
 export function GameRoomsPage() {
-  const [gameRooms, setGameRooms] = useState<GameRoom[]>([]);
+  const [gameRooms, setGameRooms] = useState<Game[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const { username } = useSearch({ from: '/game-rooms' });
   const router = useRouter();
@@ -41,7 +42,7 @@ export function GameRoomsPage() {
 
   const handleCreateRoom = async (roomName: string) => {
     console.log("Creating room:", roomName);
-    const gameRoomCreated = await GameRoomService.createGameRoom(roomName);
+    const gameRoomCreated = await GameRoomService.createGameRoom(roomName, username);
     if (!gameRoomCreated) {
         return false;
     }
@@ -83,7 +84,7 @@ export function GameRoomsPage() {
               {gameRooms.length === 0 ? <EmptyGameRoomTable />
               : gameRooms.map((gameRoom) => (
                 <GameRoomTableRow gameRoom={gameRoom} onClick={async() => {
-                    const joinedGameRoom = await GameRoomService.joinGameRoom(gameRoom.id);
+                    const joinedGameRoom = await GameRoomService.joinGameRoom(gameRoom.id, username);
                     if (!joinedGameRoom) {
                         alert("Could not join game room, try again or choose another game room.");
                         return;

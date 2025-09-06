@@ -18,7 +18,7 @@ export const CreateUserName = (): React.ReactNode => {
         }
         setButtonDisabled(true);
         const userCreated = await UserService.createUser(trimmedUsername);
-        if (!userCreated) { // TODO: swap to userCreated instead of !userCreated
+        if (userCreated) {
             router.navigate({ 
                 to: '/game-rooms',
                 search: { username: trimmedUsername }
