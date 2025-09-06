@@ -9,16 +9,20 @@ import {
   postFleet,
   postShot,
 } from "../controllers/gamesControllers";
+import { createUser } from "../controllers/user-controller";
 
-const gamesRouter = Router();
+const router = Router();
 
-gamesRouter.post("/", createGame);
-gamesRouter.put("/:id", joinGame);
-gamesRouter.get("/", listGames);
-gamesRouter.get("/:id", getGame);
-gamesRouter.post("/:id/fleet", postFleet);
-gamesRouter.get("/:id/fleet", getFleets);
-gamesRouter.post("/:id/shots", postShot);
-gamesRouter.get("/:id/shots", getShots);
+router.post("/games/", createGame);
+router.put("/games/:id", joinGame);
+router.get("/games/", listGames);
+router.get("/games/:id", getGame);
+router.post("/games/:id/fleet", postFleet);
+router.get("/games/:id/fleet", getFleets);
+router.post("/games/:id/shots", postShot);
+router.get("/games/:id/shots", getShots);
 
-export default gamesRouter;
+router.post("/users", createUser);
+router.get("/users", (req, res) => res.send("pong"));
+
+export default router;

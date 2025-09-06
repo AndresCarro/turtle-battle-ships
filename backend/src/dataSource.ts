@@ -3,6 +3,7 @@ import { DataSource } from "typeorm";
 import { Game } from "./entities/Game";
 import { Ship } from "./entities/Ship";
 import { Shot } from "./entities/Shot";
+import { User } from "./entities/User";
 
 import "reflect-metadata";
 
@@ -15,5 +16,5 @@ export const AppDataSource = new DataSource({
   database: process.env.DB_NAME,
   synchronize: true,
   logging: false,
-  entities: [Game, Ship, Shot],
+  entities: [Game, Ship, Shot, User],
 });
