@@ -20,6 +20,9 @@ export class Game {
   @Column({ nullable: true })
   player2!: string;
 
+  @Column()
+  name!: string;
+
   @Column({
     type: "enum",
     enum: GameStatus,
