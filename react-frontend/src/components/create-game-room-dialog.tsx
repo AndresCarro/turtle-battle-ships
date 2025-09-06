@@ -57,6 +57,7 @@ export function CreateGameRoomDialog({ isOpen, onClose, onCreateRoom }:
         </div>
         <DialogFooter>
           <Button
+          className='text-white'
             variant="outline"
             onClick={handleCancel}
           >

@@ -1,24 +1,34 @@
+import type { Game } from "@/models/models";
+import { API_URL, handleResponse } from "./api-utils";
+
+const gamesEndpointPrefix = "games";
+
 export const GameRoomService = {
-    createGameRoom: async (gameRoomName: string): Promise<boolean> => {
-        return !!gameRoomName;
+    createGameRoom: async (gameRoomName: string, username: string): Promise<Game> => {
+        const res = await fetch(`${API_URL}/${gamesEndpointPrefix}`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ gameRoomName, username }),
+            });
+        return handleResponse<Game>(res);
     },
-    getGameRooms: async (): Promise<GameRoom[]> => {
-        return gameRooms;
+
+    getGameRooms: async (): Promise<Game[]> => {
+        const res = await fetch(`${API_URL}/${gamesEndpointPrefix}`);
+        return handleResponse<Game[]>(res);
     },
-    joinGameRoom: async (gameRoomId: number): Promise<boolean> => {
-        return !!gameRoomId;
-    }
+
+    joinGameRoom: async (gameRoomId: number, username: string): Promise<Game> => {
+        const res = await fetch(`${API_URL}/${gamesEndpointPrefix}/${gameRoomId}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ username }),
+        });
+        return handleResponse<Game>(res);
+    },
+
+    getGameRoom: async (id: number): Promise<Game> => {
+        const res = await fetch(`${API_URL}/${gamesEndpointPrefix}/${id}`);
+        return handleResponse<Game>(res);
+  },
 }
-
-const gameRooms: GameRoom[] = [
-    { id: 1, name: "Beginner's Cove" },
-    { id: 2, name: "Admiral's Arena" },
-    { id: 3, name: "Captain's Challenge" },
-    { id: 4, name: "Naval Warriors" },
-    { id: 5, name: "Ocean Battlefield" },
-  ];
-
-export type GameRoom = {
-    id: number,
-    name: string
-};
