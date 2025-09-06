@@ -1,9 +1,4 @@
-import { createFileRoute } from '@tanstack/react-router'
 import { CreateUserName } from '@/components/create-username'
-
-export const Route = createFileRoute('/')({
-  component: CreateUserNamePage,
-})
 
 export function CreateUserNamePage() {
   return (
