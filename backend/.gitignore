@@ -1,1 +1,34 @@
-node_modules
+# Node modules
+node_modules/
+npm-debug.log*
+yarn-error.log*
+
+
+# Build outputs
+dist/
+build/
+*.tsbuildinfo
+
+# Logs
+logs/
+*.log
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDEs
+.vscode/
+.idea/
+
+# Docker
+docker-compose.override.yml
+
+# Database volumes (if using Docker)
+battleship-data/
+
+# Optional: temp fi
