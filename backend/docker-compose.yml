@@ -1,0 +1,21 @@
+services:
+  db:
+    image: postgres:17
+    container_name: battleship-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: battleship
+    ports:
+      - "5433:5432" # Puerto distinto para evitar conflictos en Windows
+    volumes:
+      - battleship-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d battleship"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  battleship-data:
