@@ -8,7 +8,7 @@ services:
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: battleship
     ports:
-      - "5433:5432" # Puerto distinto para evitar conflictos en Windows
+      - "5433:5432"
     volumes:
       - battleship-data:/var/lib/postgresql/data
     healthcheck:
