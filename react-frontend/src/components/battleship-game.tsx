@@ -1,9 +1,12 @@
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { GameBoard } from "./game-board"
 import { Card } from "./ui/card"
 import { Button } from "./ui/button"
 import { Badge } from "./ui/badge"
+import { GameService } from "@/services/games-service"
+import { useToast } from "@/hooks/use-toast"
+import type { Game, ShipInput } from "@/models/models"
 
 export type CellState = "empty" | "ship" | "hit" | "miss" | "sunk"
 
@@ -34,13 +37,6 @@ export interface PlacementState {
   ships: Ship[]
 }
 
-export interface AIState {
-  mode: "hunt" | "target"
-  targetQueue: { row: number; col: number }[]
-  lastHit: { row: number; col: number } | null
-  direction: "horizontal" | "vertical" | null
-}
-
 const BOARD_SIZE = 10
 
 const INITIAL_SHIPS: Ship[] = [
@@ -56,6 +52,76 @@ const createEmptyBoard = (): CellState[][] => {
   return Array(BOARD_SIZE)
     .fill(null)
     .map(() => Array(BOARD_SIZE).fill("empty"))
+}
+
+// Ship type mapping utilities
+const frontendToBackendShipType = (frontendName: string): ShipInput['type'] => {
+  const mapping: Record<string, ShipInput['type']> = {
+    "Carrier": "CARRIER",
+    "Battleship": "BATTLESHIP", 
+    "Cruiser": "SUBMARINE", // Assuming Cruiser maps to SUBMARINE
+    "Submarine": "SUBMARINE",
+    "Destroyer": "DESTROYER"
+  }
+  return mapping[frontendName] || "DESTROYER"
+}
+
+const backendToFrontendShipName = (backendType: ShipInput['type']): string => {
+  const mapping: Record<ShipInput['type'], string> = {
+    "CARRIER": "Carrier",
+    "BATTLESHIP": "Battleship",
+    "SUBMARINE": "Submarine", // Using Submarine for backend SUBMARINE
+    "DESTROYER": "Destroyer"
+  }
+  return mapping[backendType] || "Destroyer"
+}
+
+// Convert frontend ship positions to backend ShipInput format
+const convertShipToBackendFormat = (ship: Ship): ShipInput => {
+  if (ship.positions.length === 0) {
+    throw new Error(`Ship ${ship.name} has no positions`)
+  }
+  
+  const firstPos = ship.positions[0]
+  const orientation: ShipInput['orientation'] = 
+    ship.positions.length > 1 && ship.positions[1].row === firstPos.row 
+      ? "HORIZONTAL" 
+      : "VERTICAL"
+  
+  return {
+    type: frontendToBackendShipType(ship.name),
+    x: firstPos.col, // Frontend col -> Backend x
+    y: firstPos.row, // Frontend row -> Backend y  
+    orientation
+  }
+}
+
+// Convert backend Ship to frontend Ship format
+const convertBackendShipToFrontend = (backendShip: import("@/models/models").Ship): Ship => {
+  const positions: { row: number; col: number }[] = []
+  
+  for (let i = 0; i < backendShip.length; i++) {
+    if (backendShip.orientation === "HORIZONTAL") {
+      positions.push({ 
+        row: backendShip.y, // Backend y -> Frontend row
+        col: backendShip.x + i // Backend x -> Frontend col
+      })
+    } else {
+      positions.push({ 
+        row: backendShip.y + i, // Backend y -> Frontend row
+        col: backendShip.x // Backend x -> Frontend col
+      })
+    }
+  }
+  
+  return {
+    name: backendToFrontendShipName(backendShip.type),
+    size: backendShip.length,
+    placed: true,
+    positions,
+    hits: 0, // Will be calculated from shots
+    sunk: false // Will be calculated from hits
+  }
 }
 
 const canPlaceShip = (
@@ -122,7 +188,12 @@ const markShipAsSunk = (board: CellState[][], ship: Ship): CellState[][] => {
   return newBoard
 }
 
-export function BattleshipGame() {
+export function BattleshipGame({gameRoom, currentUsername}:{gameRoom: Game, currentUsername: string}) {
+  const { toast } = useToast()
+  
+  const isPlayer1 = gameRoom.player1 === currentUsername
+  const opponentUsername = isPlayer1 ? gameRoom.player2 : gameRoom.player1
+  
   const [gameState, setGameState] = useState<GameState>({
     playerBoard: createEmptyBoard(),
     enemyBoard: createEmptyBoard(),
@@ -143,163 +214,224 @@ export function BattleshipGame() {
 
   const [enemyShipsData, setEnemyShipsData] = useState<Ship[]>([])
   const [playerShipsData, setPlayerShipsData] = useState<Ship[]>([])
+  
+  const [isFleetSubmitted, setIsFleetSubmitted] = useState(false)
+  const [isWaitingForOpponent, setIsWaitingForOpponent] = useState(false)
+  const [isSubmittingFleet, setIsSubmittingFleet] = useState(false)
+  const [isSubmittingShot, setIsSubmittingShot] = useState(false)
+  const [lastShotCount, setLastShotCount] = useState(0)
+  
+  const fleetPollingInterval = useRef<NodeJS.Timeout | null>(null)
+  const shotPollingInterval = useRef<NodeJS.Timeout | null>(null);
 
-  const [aiState, setAIState] = useState<AIState>({
-    mode: "hunt",
-    targetQueue: [],
-    lastHit: null,
-    direction: null,
-  })
-
-  useEffect(() => {
-    if (gameState.currentPlayer === "enemy" && gameState.gamePhase === "battle") {
-      const timer = setTimeout(() => {
-        performAIAttack()
-      }, 1500)
-
-      return () => clearTimeout(timer)
+  const startFleetPolling = () => {
+    if (fleetPollingInterval.current) {
+      clearInterval(fleetPollingInterval.current)
     }
-  }, [gameState.currentPlayer, gameState.gamePhase])
-
-  const performAIAttack = () => {
-    let targetCell: { row: number; col: number } | null = null
-
-    if (aiState.mode === "target" && aiState.targetQueue.length > 0) {
-      // Target mode: attack cells adjacent to hits
-      targetCell = aiState.targetQueue.shift()!
-    } else {
-      // Hunt mode: find available cells with strategic spacing
-      const availableCells: { row: number; col: number }[] = []
-
-      // Use checkerboard pattern for more efficient hunting
-      for (let row = 0; row < BOARD_SIZE; row++) {
-        for (let col = 0; col < BOARD_SIZE; col++) {
-          if (gameState.playerBoard[row][col] === "empty") {
-            // Prioritize checkerboard pattern for better ship detection
-            if ((row + col) % 2 === 0) {
-              availableCells.unshift({ row, col })
-            } else {
-              availableCells.push({ row, col })
-            }
+    
+    fleetPollingInterval.current = setInterval(async () => {
+      try {
+        if (!opponentUsername) {
+          console.warn("No opponent found, stopping fleet polling")
+          if (fleetPollingInterval.current) {
+            clearInterval(fleetPollingInterval.current)
+            fleetPollingInterval.current = null
+          }
+          return
+        }
+        
+        const opponentFleets = await GameService.getFleets(gameRoom.id, opponentUsername)
+        
+        if (opponentFleets.length > 0) {
+          setIsWaitingForOpponent(false)
+          await initializeBattlePhase()
+          if (fleetPollingInterval.current) {
+            clearInterval(fleetPollingInterval.current)
+            fleetPollingInterval.current = null
           }
         }
+      } catch (error) {
+        console.error("Failed to check opponent fleet status:", error)
       }
-
-      if (availableCells.length === 0) return
-
-      const randomIndex = Math.floor(Math.random() * Math.min(availableCells.length, 3))
-      targetCell = availableCells[randomIndex]
-    }
-
-    if (!targetCell) return
-
-    const { row, col } = targetCell
-    const newPlayerBoard = [...gameState.playerBoard.map((row) => [...row])]
-    let isHit = false
-    let hitShip: Ship | null = null
-
-    if (gameState.playerShips[row][col] === "ship") {
-      newPlayerBoard[row][col] = "hit"
-      isHit = true
-
-      hitShip = playerShipsData.find((ship) => ship.positions.some((pos) => pos.row === row && pos.col === col)) || null
-
-      if (hitShip) {
-        hitShip.hits++
-
-        if (checkShipSunk(hitShip, newPlayerBoard)) {
-          hitShip.sunk = true
-          const boardWithSunkShip = markShipAsSunk(newPlayerBoard, hitShip)
-          newPlayerBoard.splice(0, newPlayerBoard.length, ...boardWithSunkShip)
-
-          // Ship sunk: return to hunt mode
-          setAIState({
-            mode: "hunt",
-            targetQueue: [],
-            lastHit: null,
-            direction: null,
-          })
-        } else {
-          // Hit but not sunk: enter target mode
-          const newTargets: { row: number; col: number }[] = []
-
-          if (aiState.lastHit && aiState.direction) {
-            // Continue in the established direction
-            if (aiState.direction === "horizontal") {
-              if (col > aiState.lastHit.col && col + 1 < BOARD_SIZE && newPlayerBoard[row][col + 1] === "empty") {
-                newTargets.push({ row, col: col + 1 })
-              }
-              if (col < aiState.lastHit.col && col - 1 >= 0 && newPlayerBoard[row][col - 1] === "empty") {
-                newTargets.push({ row, col: col - 1 })
-              }
-            } else {
-              if (row > aiState.lastHit.row && row + 1 < BOARD_SIZE && newPlayerBoard[row + 1][col] === "empty") {
-                newTargets.push({ row: row + 1, col })
-              }
-              if (row < aiState.lastHit.row && row - 1 >= 0 && newPlayerBoard[row - 1][col] === "empty") {
-                newTargets.push({ row: row - 1, col })
-              }
-            }
-          } else {
-            // First hit or determine direction
-            const adjacentCells = [
-              { row: row - 1, col, dir: "vertical" as const },
-              { row: row + 1, col, dir: "vertical" as const },
-              { row, col: col - 1, dir: "horizontal" as const },
-              { row, col: col + 1, dir: "horizontal" as const },
-            ]
-
-            adjacentCells.forEach(({ row: r, col: c }) => {
-              if (r >= 0 && r < BOARD_SIZE && c >= 0 && c < BOARD_SIZE && newPlayerBoard[r][c] === "empty") {
-                newTargets.push({ row: r, col: c })
-              }
-            })
-
-            // If we have a previous hit, determine direction
-            if (aiState.lastHit) {
-              const direction = row === aiState.lastHit.row ? "horizontal" : "vertical"
-              setAIState((prev) => ({ ...prev, direction }))
-            }
-          }
-
-          setAIState((prev) => ({
-            mode: "target",
-            targetQueue: [...prev.targetQueue.filter((t) => !(t.row === row && t.col === col)), ...newTargets],
-            lastHit: { row, col },
-            direction: prev.direction,
-          }))
-        }
+    }, 2000) // Poll every 2 seconds
+  }
+  
+  const initializeBattlePhase = async () => {
+    try {
+      if (!opponentUsername) {
+        throw new Error("No opponent found")
       }
-    } else {
-      newPlayerBoard[row][col] = "miss"
-
-      // Remove this cell from target queue if it was there
-      setAIState((prev) => ({
+      
+      const allFleets = await GameService.getFleets(gameRoom.id)
+      
+      const playerFleet = allFleets.filter(ship => ship.player === currentUsername)
+      const opponentFleet = allFleets.filter(ship => ship.player === opponentUsername)
+      
+      const playerShips = playerFleet.map(ship => convertBackendShipToFrontend(ship))
+      const opponentShips = opponentFleet.map(ship => convertBackendShipToFrontend(ship))
+      
+      const enemyShips = createEmptyBoard()
+      opponentShips.forEach(ship => {
+        ship.positions.forEach(pos => {
+          enemyShips[pos.row][pos.col] = "ship"
+        })
+      })
+      
+      setPlayerShipsData(playerShips)
+      setEnemyShipsData(opponentShips)
+      
+      setGameState(prev => ({
         ...prev,
-        targetQueue: prev.targetQueue.filter((t) => !(t.row === row && t.col === col)),
+        enemyShips,
+        gamePhase: "battle",
       }))
+      
+      startShotPolling()
+      
+      toast({
+        title: "Battle begins!",
+        description: "Both players are ready. Take your first shot!",
+      })
+      
+    } catch (error) {
+      console.error("Failed to initialize battle phase:", error)
+      toast({
+        title: "Error",
+        description: "Failed to start battle. Please refresh and try again.",
+        variant: "destructive",
+      })
     }
-
-    const newEnemyStats = {
-      ...gameState.enemyStats,
-      hits: isHit ? gameState.enemyStats.hits + 1 : gameState.enemyStats.hits,
-      misses: !isHit ? gameState.enemyStats.misses + 1 : gameState.enemyStats.misses,
-      shipsRemaining: playerShipsData.filter((ship) => !ship.sunk).length,
+  }
+  
+  const startShotPolling = () => {
+    if (shotPollingInterval.current) {
+      clearInterval(shotPollingInterval.current)
     }
-
-    const enemyWon = checkWinCondition(playerShipsData)
-
-    setGameState((prev) => ({
+    
+    shotPollingInterval.current = setInterval(async () => {
+      try {
+        const shots = await GameService.getShots(gameRoom.id)
+        
+        if (shots.length > lastShotCount) {
+          await processShotsUpdate(shots)
+          setLastShotCount(shots.length)
+        }
+      } catch (error) {
+        console.error("Failed to get shots:", error)
+      }
+    }, 1000)
+  }
+  
+  const processShotsUpdate = async (shots: import("@/models/models").Shot[]) => {
+    const playerShots = shots.filter(shot => shot.player === currentUsername)
+    const opponentShots = shots.filter(shot => shot.player === opponentUsername)
+    
+    const newPlayerBoard = createEmptyBoard()
+    let playerHits = 0
+    
+    opponentShots.forEach(shot => {
+      const row = shot.y // Backend y -> Frontend row
+      const col = shot.x // Backend x -> Frontend col
+      
+      if (shot.hit) {
+        newPlayerBoard[row][col] = "hit"
+        playerHits++
+      } else {
+        newPlayerBoard[row][col] = "miss"
+      }
+    })
+    
+    const newEnemyBoard = createEmptyBoard()
+    let enemyHits = 0
+    
+    playerShots.forEach(shot => {
+      const row = shot.y // Backend y -> Frontend row  
+      const col = shot.x // Backend x -> Frontend col
+      
+      if (shot.hit) {
+        newEnemyBoard[row][col] = "hit"
+        enemyHits++
+      } else {
+        newEnemyBoard[row][col] = "miss"
+      }
+    })
+    
+    // Determine whose turn it is (player with fewer shots goes next)
+    const isPlayerTurn = playerShots.length <= opponentShots.length
+    
+    updateShipStatus(playerShipsData, opponentShots, setPlayerShipsData)
+    updateShipStatus(enemyShipsData, playerShots, setEnemyShipsData)
+    
+    const playerWon = enemyShipsData.every(ship => ship.sunk)
+    const opponentWon = playerShipsData.every(ship => ship.sunk)
+    
+    setGameState(prev => ({
       ...prev,
       playerBoard: newPlayerBoard,
-      currentPlayer: "player",
-      enemyStats: newEnemyStats,
-      gamePhase: enemyWon ? "gameOver" : "battle",
-      winner: enemyWon ? "enemy" : null,
+      enemyBoard: newEnemyBoard,
+      currentPlayer: isPlayerTurn ? "player" : "enemy",
+      gamePhase: playerWon || opponentWon ? "gameOver" : "battle",
+      winner: playerWon ? "player" : opponentWon ? "enemy" : null,
+      playerStats: {
+        hits: enemyHits,
+        misses: playerShots.length - enemyHits,
+        shipsRemaining: enemyShipsData.filter(ship => !ship.sunk).length
+      },
+      enemyStats: {
+        hits: playerHits,
+        misses: opponentShots.length - playerHits,
+        shipsRemaining: playerShipsData.filter(ship => !ship.sunk).length
+      }
     }))
   }
+  
+  const updateShipStatus = (
+    ships: Ship[], 
+    shots: import("@/models/models").Shot[], 
+    setShips: React.Dispatch<React.SetStateAction<Ship[]>>
+  ) => {
+    const updatedShips = ships.map(ship => {
+      let hits = 0
+      ship.positions.forEach(pos => {
+        const shotHit = shots.find(shot => 
+          shot.x === pos.col && shot.y === pos.row && shot.hit
+        )
+        if (shotHit) hits++
+      })
+      
+      return {
+        ...ship,
+        hits,
+        sunk: hits === ship.size
+      }
+    })
+    
+    setShips(updatedShips)
+  }
 
-  const handleCellClick = (row: number, col: number, isPlayerBoard: boolean) => {
+  useEffect(() => {
+    return () => {
+      if (fleetPollingInterval.current) {
+        clearInterval(fleetPollingInterval.current)
+        fleetPollingInterval.current = null
+      }
+      if (shotPollingInterval.current) {
+        clearInterval(shotPollingInterval.current)
+        shotPollingInterval.current = null
+      }
+    }
+  }, [])
+  
+  useEffect(() => {
+    if (gameState.gamePhase === "gameOver") {
+      if (shotPollingInterval.current) {
+        clearInterval(shotPollingInterval.current)
+        shotPollingInterval.current = null
+      }
+    }
+  }, [gameState.gamePhase]);
+
+  const handleCellClick = async (row: number, col: number, isPlayerBoard: boolean) => {
     if (gameState.gamePhase === "placement" && isPlayerBoard) {
       if (placementState.selectedShip === null) return
 
@@ -338,170 +470,165 @@ export function BattleshipGame() {
     if (gameState.gamePhase !== "battle") return
     if (isPlayerBoard) return
     if (gameState.currentPlayer !== "player") return
+    if (isSubmittingShot) return
 
-    const newEnemyBoard = [...gameState.enemyBoard.map((row) => [...row])]
+    // Check if cell already shot
+    if (gameState.enemyBoard[row][col] !== "empty") return
 
-    if (newEnemyBoard[row][col] !== "empty") return
+    try {
+      setIsSubmittingShot(true)
+      
+      // Submit shot to API
+      const shotResult = await GameService.postShot(
+        gameRoom.id, 
+        currentUsername, 
+        col, // Frontend col -> Backend x
+        row  // Frontend row -> Backend y
+      )
+      
+      // Update local board immediately for better UX
+      const newEnemyBoard = [...gameState.enemyBoard.map((row) => [...row])]
+      newEnemyBoard[row][col] = shotResult.hit ? "hit" : "miss"
+      
+      let hitShip: Ship | null = null
+      
+      if (shotResult.hit) {
+        // Find the ship that was hit
+        hitShip = enemyShipsData.find((ship) => 
+          ship.positions.some((pos) => pos.row === row && pos.col === col)
+        ) || null
 
-    let isHit = false
-    let hitShip: Ship | null = null
+        if (hitShip) {
+          hitShip.hits++
 
-    if (gameState.enemyShips[row][col] === "ship") {
-      newEnemyBoard[row][col] = "hit"
-      isHit = true
-
-      hitShip = enemyShipsData.find((ship) => ship.positions.some((pos) => pos.row === row && pos.col === col)) || null
-
-      if (hitShip) {
-        hitShip.hits++
-
-        if (checkShipSunk(hitShip, newEnemyBoard)) {
-          hitShip.sunk = true
-          const boardWithSunkShip = markShipAsSunk(newEnemyBoard, hitShip)
-          newEnemyBoard.splice(0, newEnemyBoard.length, ...boardWithSunkShip)
-        }
-      }
-    } else {
-      newEnemyBoard[row][col] = "miss"
-    }
-
-    const newPlayerStats = {
-      ...gameState.playerStats,
-      hits: isHit ? gameState.playerStats.hits + 1 : gameState.playerStats.hits,
-      misses: !isHit ? gameState.playerStats.misses + 1 : gameState.playerStats.misses,
-      shipsRemaining: enemyShipsData.filter((ship) => !ship.sunk).length,
-    }
-
-    const playerWon = checkWinCondition(enemyShipsData)
-
-    setGameState((prev) => ({
-      ...prev,
-      enemyBoard: newEnemyBoard,
-      currentPlayer: playerWon ? "player" : "enemy",
-      playerStats: newPlayerStats,
-      gamePhase: playerWon ? "gameOver" : "battle",
-      winner: playerWon ? "player" : null,
-    }))
-  }
-
-  const startBattle = () => {
-    const enemyShips = createEmptyBoard()
-    const ships: Ship[] = INITIAL_SHIPS.map((ship) => ({ ...ship, positions: [], hits: 0, sunk: false }))
-
-    ships.forEach((ship) => {
-      let placed = false
-      while (!placed) {
-        const row = Math.floor(Math.random() * BOARD_SIZE)
-        const col = Math.floor(Math.random() * BOARD_SIZE)
-        const orientation = Math.random() < 0.5 ? "horizontal" : "vertical"
-
-        if (canPlaceShip(enemyShips, row, col, ship.size, orientation)) {
-          const { board: newBoard, positions } = placeShip(enemyShips, row, col, ship.size, orientation)
-          ship.positions = positions
-
-          for (let r = 0; r < BOARD_SIZE; r++) {
-            for (let c = 0; c < BOARD_SIZE; c++) {
-              if (newBoard[r][c] === "ship" && enemyShips[r][c] !== "ship") {
-                enemyShips[r][c] = "ship"
-              }
-            }
+          if (checkShipSunk(hitShip, newEnemyBoard)) {
+            hitShip.sunk = true
+            const boardWithSunkShip = markShipAsSunk(newEnemyBoard, hitShip)
+            newEnemyBoard.splice(0, newEnemyBoard.length, ...boardWithSunkShip)
           }
-          placed = true
         }
       }
-    })
 
-    const playerShips = placementState.ships.map((ship) => ({ ...ship }))
-    setPlayerShipsData(playerShips)
+      const newPlayerStats = {
+        ...gameState.playerStats,
+        hits: shotResult.hit ? gameState.playerStats.hits + 1 : gameState.playerStats.hits,
+        misses: !shotResult.hit ? gameState.playerStats.misses + 1 : gameState.playerStats.misses,
+        shipsRemaining: enemyShipsData.filter((ship) => !ship.sunk).length,
+      }
 
-    setEnemyShipsData(ships)
-    setGameState((prev) => ({
-      ...prev,
-      enemyShips,
-      gamePhase: "battle",
-    }))
+      const playerWon = checkWinCondition(enemyShipsData)
+
+      setGameState((prev) => ({
+        ...prev,
+        enemyBoard: newEnemyBoard,
+        currentPlayer: playerWon ? "player" : "enemy",
+        playerStats: newPlayerStats,
+        gamePhase: playerWon ? "gameOver" : "battle",
+        winner: playerWon ? "player" : null,
+      }))
+      
+    } catch (error) {
+      console.error("Failed to submit shot:", error)
+      toast({
+        title: "Error",
+        description: "Failed to submit shot. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsSubmittingShot(false)
+    }
+  };
+
+  const startBattle = async () => {
+    if (isSubmittingFleet) return
+    
+    try {
+      setIsSubmittingFleet(true)
+      
+      // Convert placed ships to backend format
+      const shipsToSubmit: ShipInput[] = placementState.ships
+        .filter(ship => ship.placed)
+        .map(ship => convertShipToBackendFormat(ship))
+      
+      // Submit player's fleet to backend
+      await GameService.postFleet(gameRoom.id, currentUsername, shipsToSubmit)
+      setIsFleetSubmitted(true)
+      setIsWaitingForOpponent(true)
+      
+      toast({
+        title: "Fleet submitted!",
+        description: "Waiting for opponent to place their ships...",
+      })
+      
+      // Start polling for opponent's fleet status
+      startFleetPolling()
+      
+    } catch (error) {
+      console.error("Failed to submit fleet:", error)
+      toast({
+        title: "Error",
+        description: "Failed to submit fleet. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsSubmittingFleet(false)
+    }
   }
 
-  const resetGame = () => {
-    setGameState({
-      playerBoard: createEmptyBoard(),
-      enemyBoard: createEmptyBoard(),
-      playerShips: createEmptyBoard(),
-      enemyShips: createEmptyBoard(),
-      currentPlayer: "player",
-      gamePhase: "placement",
-      winner: null,
-      playerStats: { hits: 0, misses: 0, shipsRemaining: 5 },
-      enemyStats: { hits: 0, misses: 0, shipsRemaining: 5 },
-    })
-    setPlacementState({
-      selectedShip: null,
-      orientation: "horizontal",
-      ships: [...INITIAL_SHIPS],
-    })
-    setEnemyShipsData([])
-    setPlayerShipsData([])
-    setAIState({
-      mode: "hunt",
-      targetQueue: [],
-      lastHit: null,
-      direction: null,
-    })
-  }
-
-  const allShipsPlaced = placementState.ships.every((ship) => ship.placed)
+  const allShipsPlaced = placementState.ships.every((ship) => ship.placed);
 
   return (
     <div className="flex flex-col items-center gap-8">
       {gameState.gamePhase === "gameOver" && (
         <Card className="p-6 w-full max-w-md text-center">
-          <h2 className="text-2xl font-bold text-blue-900 dark:text-blue-100 mb-4">
+          <h2 className="text-2xl font-bold text-white mb-4">
             {gameState.winner === "player" ? "Victory!" : "Defeat!"}
           </h2>
-          <p className="text-blue-700 dark:text-blue-300 mb-4">
+          <p className="text-white mb-4">
             {gameState.winner === "player"
               ? "Congratulations! You sunk all enemy ships!"
               : "The enemy has sunk all your ships!"}
           </p>
-          <div className="grid grid-cols-2 gap-4 mb-4 text-sm">
+          <div className="grid grid-cols-2 gap-4 mb-4 text-sm text-white">
             <div>
-              <div className="font-medium">Your Stats</div>
-              <div>Hits: {gameState.playerStats.hits}</div>
-              <div>Misses: {gameState.playerStats.misses}</div>
-              <div>
+              <h4 className="font-medium text-white">{currentUsername}'s Stats</h4>
+              <p className="text-white">Hits: <span className="text-white">{gameState.playerStats.hits}</span></p>
+              <p className="text-white">Misses: <span className="text-white">{gameState.playerStats.misses}</span></p>
+              <p className="text-white">
                 Accuracy:{" "}
-                {gameState.playerStats.hits + gameState.playerStats.misses > 0
-                  ? Math.round(
-                      (gameState.playerStats.hits / (gameState.playerStats.hits + gameState.playerStats.misses)) * 100,
-                    )
-                  : 0}
-                %
-              </div>
+                <span className="text-white">
+                  {gameState.playerStats.hits + gameState.playerStats.misses > 0
+                    ? Math.round(
+                        (gameState.playerStats.hits / (gameState.playerStats.hits + gameState.playerStats.misses)) * 100,
+                      )
+                    : 0}
+                  %
+                </span>
+              </p>
             </div>
             <div>
-              <div className="font-medium">Enemy Stats</div>
-              <div>Hits: {gameState.enemyStats.hits}</div>
-              <div>Misses: {gameState.enemyStats.misses}</div>
-              <div>
+              <h4 className="font-medium text-white">{opponentUsername || "Opponent"}'s Stats</h4>
+              <p className="text-white">Hits: <span className="text-white">{gameState.enemyStats.hits}</span></p>
+              <p className="text-white">Misses: <span className="text-white">{gameState.enemyStats.misses}</span></p>
+              <p className="text-white">
                 Accuracy:{" "}
-                {gameState.enemyStats.hits + gameState.enemyStats.misses > 0
-                  ? Math.round(
-                      (gameState.enemyStats.hits / (gameState.enemyStats.hits + gameState.enemyStats.misses)) * 100,
-                    )
-                  : 0}
-                %
-              </div>
+                <span className="text-white">
+                  {gameState.enemyStats.hits + gameState.enemyStats.misses > 0
+                    ? Math.round(
+                        (gameState.enemyStats.hits / (gameState.enemyStats.hits + gameState.enemyStats.misses)) * 100,
+                      )
+                    : 0}
+                  %
+                </span>
+              </p>
             </div>
           </div>
-          <Button onClick={resetGame} className="w-full">
-            Play Again
-          </Button>
         </Card>
       )}
 
       {gameState.gamePhase === "placement" && (
         <Card className="p-6 w-full max-w-4xl">
-          <h3 className="text-lg font-semibold text-blue-900 dark:text-blue-100 mb-4">Place Your Ships</h3>
+          <h3 className="text-lg font-semibold text-white mb-4">Place Your Ships</h3>
 
           <div className="flex flex-wrap gap-2 mb-4">
             {placementState.ships.map((ship, index) => (
@@ -515,7 +642,7 @@ export function BattleshipGame() {
                   }))
                 }
                 disabled={ship.placed}
-                className="flex items-center gap-2"
+                className="flex items-center gap-2 text-white"
               >
                 {ship.name} ({ship.size})
                 {ship.placed && (
@@ -528,10 +655,11 @@ export function BattleshipGame() {
           </div>
 
           <div className="flex items-center gap-4 mb-4">
-            <span className="text-sm font-medium">Orientation:</span>
+            <span className="text-sm font-medium text-white">Orientation:</span>
             <Button
               variant={placementState.orientation === "horizontal" ? "default" : "outline"}
               size="sm"
+              className="text-white"
               onClick={() => setPlacementState((prev) => ({ ...prev, orientation: "horizontal" }))}
             >
               Horizontal
@@ -539,16 +667,33 @@ export function BattleshipGame() {
             <Button
               variant={placementState.orientation === "vertical" ? "default" : "outline"}
               size="sm"
+              className="text-white"
               onClick={() => setPlacementState((prev) => ({ ...prev, orientation: "vertical" }))}
             >
               Vertical
             </Button>
           </div>
 
-          {allShipsPlaced && (
-            <Button onClick={startBattle} className="w-full">
-              Start Battle!
+          {allShipsPlaced && !isFleetSubmitted && (
+            <Button 
+              onClick={startBattle} 
+              className="bg-green-600 hover:bg-green-700 text-white"
+              variant="default"
+              disabled={isSubmittingFleet}
+            >
+              {isSubmittingFleet ? "Submitting Fleet..." : "Start Battle!"}
             </Button>
+          )}
+          
+          {isWaitingForOpponent && (
+            <div className="text-center p-4">
+              <h4 className="text-lg font-semibold text-white mb-2">
+                Waiting for opponent...
+              </h4>
+              <p className="text-sm text-white">
+                {opponentUsername ? `Waiting for ${opponentUsername} to place their ships` : "Waiting for opponent to place their ships"}
+              </p>
+            </div>
           )}
         </Card>
       )}
@@ -556,44 +701,55 @@ export function BattleshipGame() {
       {gameState.gamePhase === "battle" && (
         <Card className="p-4 w-full max-w-2xl">
           <div className="text-center mb-4">
-            <div className="text-lg font-semibold text-blue-900 dark:text-blue-100">
-              {gameState.currentPlayer === "player" ? "Your Turn" : "Enemy Turn"}
-            </div>
+            <h3 className="text-lg font-semibold text-white">
+              {gameState.currentPlayer === "player" ? "Your Turn" : `${opponentUsername || "Opponent"}'s Turn`}
+            </h3>
             {gameState.currentPlayer === "enemy" && (
-              <div className="text-sm text-blue-600 dark:text-blue-400">AI is thinking...</div>
+              <p className="text-sm text-white">
+                Waiting for {opponentUsername || "opponent"} to make their move...
+              </p>
+            )}
+            {isSubmittingShot && (
+              <p className="text-sm text-white">
+                Submitting shot...
+              </p>
             )}
           </div>
 
-          <div className="grid grid-cols-2 gap-8 text-sm">
+          <div className="grid grid-cols-2 gap-8 text-sm text-white">
             <div>
-              <div className="font-medium text-center mb-2">Your Stats</div>
-              <div>Hits: {gameState.playerStats.hits}</div>
-              <div>Misses: {gameState.playerStats.misses}</div>
-              <div>Enemy Ships: {gameState.playerStats.shipsRemaining}</div>
-              <div>
+              <h4 className="font-medium text-center mb-2 text-white">{currentUsername}'s Stats</h4>
+              <p className="text-white">Hits: <span className="text-white">{gameState.playerStats.hits}</span></p>
+              <p className="text-white">Misses: <span className="text-white">{gameState.playerStats.misses}</span></p>
+              <p className="text-white">{opponentUsername || "Opponent"} Ships: <span className="text-white">{gameState.playerStats.shipsRemaining}</span></p>
+              <p className="text-white">
                 Accuracy:{" "}
-                {gameState.playerStats.hits + gameState.playerStats.misses > 0
-                  ? Math.round(
-                      (gameState.playerStats.hits / (gameState.playerStats.hits + gameState.playerStats.misses)) * 100,
-                    )
-                  : 0}
-                %
-              </div>
+                <span className="text-white">
+                  {gameState.playerStats.hits + gameState.playerStats.misses > 0
+                    ? Math.round(
+                        (gameState.playerStats.hits / (gameState.playerStats.hits + gameState.playerStats.misses)) * 100,
+                      )
+                    : 0}
+                  %
+                </span>
+              </p>
             </div>
             <div>
-              <div className="font-medium text-center mb-2">Enemy Stats</div>
-              <div>Hits: {gameState.enemyStats.hits}</div>
-              <div>Misses: {gameState.enemyStats.misses}</div>
-              <div>Your Ships: {gameState.enemyStats.shipsRemaining}</div>
-              <div>
+              <h4 className="font-medium text-center mb-2 text-white">{opponentUsername || "Opponent"}'s Stats</h4>
+              <p className="text-white">Hits: <span className="text-white">{gameState.enemyStats.hits}</span></p>
+              <p className="text-white">Misses: <span className="text-white">{gameState.enemyStats.misses}</span></p>
+              <p className="text-white">Your Ships: <span className="text-white">{gameState.enemyStats.shipsRemaining}</span></p>
+              <p className="text-white">
                 Accuracy:{" "}
-                {gameState.enemyStats.hits + gameState.enemyStats.misses > 0
-                  ? Math.round(
-                      (gameState.enemyStats.hits / (gameState.enemyStats.hits + gameState.enemyStats.misses)) * 100,
-                    )
-                  : 0}
-                %
-              </div>
+                <span className="text-white">
+                  {gameState.enemyStats.hits + gameState.enemyStats.misses > 0
+                    ? Math.round(
+                        (gameState.enemyStats.hits / (gameState.enemyStats.hits + gameState.enemyStats.misses)) * 100,
+                      )
+                    : 0}
+                  %
+                </span>
+              </p>
             </div>
           </div>
         </Card>
@@ -601,7 +757,7 @@ export function BattleshipGame() {
 
       <div className="flex flex-col lg:flex-row gap-8 items-start justify-center">
         <div className="flex flex-col items-center">
-          <h2 className="text-xl font-semibold text-blue-900 dark:text-blue-100 mb-4">Your Fleet</h2>
+          <h2 className="text-xl font-semibold text-white mb-4">Your Fleet</h2>
           <Card className="p-4">
             <GameBoard
               board={gameState.playerBoard}
@@ -615,7 +771,7 @@ export function BattleshipGame() {
 
         {gameState.gamePhase === "battle" && (
           <div className="flex flex-col items-center">
-            <h2 className="text-xl font-semibold text-blue-900 dark:text-blue-100 mb-4">Enemy Waters</h2>
+            <h2 className="text-xl font-semibold text-white mb-4">{opponentUsername || "Opponent"}'s Waters</h2>
             <Card className="p-4">
               <GameBoard
                 board={gameState.enemyBoard}
@@ -630,4 +786,4 @@ export function BattleshipGame() {
       </div>
     </div>
   )
-}
+};
