@@ -105,6 +105,8 @@ export const postShotService = async (
     relations: ["ships"],
   });
   if (!game) throw new Error("Game not found");
+  if (game.status != GameStatus.IN_PROGRESS)
+    throw Error("Game is not in a valid state, it should be in progress.");
 
   // Obtener flota del oponente
   const opponentShips = game.ships.filter((s) => s.player !== username);
@@ -128,9 +130,44 @@ export const postShotService = async (
     }
   }
 
-  const shot = shotRepository.create({ player: username, x, y, hit, game });
-  return shotRepository.save(shot);
+  const shot = shotRepository.save(
+    shotRepository.create({ player: username, x, y, hit, game })
+  );
+
+  if (checkIfGameFinished(game, username)) {
+    game.status = GameStatus.FINISHED;
+    gameRepository.save(game);
+  }
+  return shot;
 };
+
+function checkIfGameFinished(game: Game, lastShooter: string): boolean {
+  const opponentShips = game.ships.filter((s) => s.player !== lastShooter);
+
+  const hits = game.shots.filter((s) => s.player === lastShooter && s.hit);
+
+  const allPositions = opponentShips.flatMap((ship) => {
+    const positions = [];
+    for (let i = 0; i < ship.length; i++) {
+      if (ship.orientation === Orientation.HORIZONTAL) {
+        positions.push({ x: ship.x + i, y: ship.y });
+      } else {
+        positions.push({ x: ship.x, y: ship.y + i });
+      }
+    }
+    return positions;
+  });
+
+  const allSunk = allPositions.every((pos) =>
+    hits.some((s) => s.x === pos.x && s.y === pos.y)
+  );
+
+  if (allSunk) {
+    return true;
+  }
+
+  return false;
+}
 
 export const getShotsService = async (id: number) => {
   return shotRepository.find({ where: { game: { id } } });
