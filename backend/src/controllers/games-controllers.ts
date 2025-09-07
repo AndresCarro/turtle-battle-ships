@@ -13,7 +13,9 @@ import {
 export const createGame = async (req: Request, res: Response) => {
   try {
     const { gameRoomName, username } = req.body;
-    if (!username || !gameRoomName)
+    if (!gameRoomName)
+      return res.status(400).json({ error: "gameRoomName is required" });
+    if (!username)
       return res.status(400).json({ error: "username is required" });
     const game = await createGameService(username, gameRoomName);
     res.json(game);

@@ -1,14 +1,19 @@
+version: "3.9"
+
 services:
   postgres:
     image: postgres:17-alpine
-    env_file: "./db.env"
+    env_file: "./.env"
     ports:
-      - "127.0.0.1:${POSTGRES_PORT}:5432"
+      - "127.0.0.1:${DB_PORT}:5432"
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test:
-        ["CMD", "pg_isready", "-U", "${POSTGRES_USER}", "-d", "${POSTGRES_DB}"]
+      test: ["CMD", "pg_isready", "-U", "${DB_USER}", "-d", "${DB_NAME}"]
       interval: 5s
       timeout: 5s
       retries: 3
@@ -17,28 +22,23 @@ services:
 
   bucket:
     image: minio/minio:RELEASE.2025-05-24T17-08-30Z
-    env_file: "./bucket.env"
+    env_file: "./.env"
     command: server /data --console-address ":${ADMIN_PORT}"
     ports:
       - "127.0.0.1:${BUCKET_PORT}:9000"
       - "127.0.0.1:${ADMIN_PORT}:9001"
     environment:
-      - MINIO_ROOT_USER=${BUCKET_ACCESS_KEY}
-      - MINIO_ROOT_PASSWORD=${BUCKET_SECRET_ACCESS_KEY}
+      MINIO_ROOT_USER: ${BUCKET_ACCESS_KEY}
+      MINIO_ROOT_PASSWORD: ${BUCKET_SECRET_ACCESS_KEY}
     volumes:
       - bucket_data:/data
     healthcheck:
       test:
         [
           "CMD",
-          "timeout",
-          "5s",
           "bash",
           "-c",
-          "':> /dev/tcp/127.0.0.1/9000'",
-          "||",
-          "exit",
-          "1",
+          "timeout 5s bash -c '</dev/tcp/127.0.0.1/9000' || exit 1",
         ]
       interval: 5s
       timeout: 5s
@@ -52,10 +52,10 @@ services:
       - bucket
     entrypoint: ["/bin/sh", "-c"]
     command: |
-      "mc alias set myminio http://bucket:9000 ${BUCKET_ACCESS_KEY} ${BUCKET_SECRET_ACCESS_KEY} && \
-       mc mb --ignore-existing myminio/${BUCKET_NAME} && \
-       mc policy set public myminio/${BUCKET_NAME}"
-    restart: "on-failure"
+      mc alias set myminio http://bucket:9000 ${BUCKET_ACCESS_KEY} ${BUCKET_SECRET_ACCESS_KEY} && \
+      mc mb --ignore-existing myminio/${BUCKET_NAME} && \
+      mc policy set public myminio/${BUCKET_NAME}
+    restart: on-failure
 
 volumes:
   postgres_data:
