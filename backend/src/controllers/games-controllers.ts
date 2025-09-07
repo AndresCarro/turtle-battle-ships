@@ -8,7 +8,7 @@ import {
   listGamesService,
   postFleetService,
   postShotService,
-} from "../services/gamesService";
+} from "../services/games-service";
 
 export const createGame = async (req: Request, res: Response) => {
   try {

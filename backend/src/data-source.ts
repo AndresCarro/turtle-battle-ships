@@ -1,9 +1,9 @@
 import "reflect-metadata";
 import { DataSource } from "typeorm";
-import { Game } from "./entities/Game";
-import { Ship } from "./entities/Ship";
-import { Shot } from "./entities/Shot";
-import { User } from "./entities/User";
+import { Game } from "./entities/game";
+import { Ship } from "./entities/ship";
+import { Shot } from "./entities/shot";
+import { User } from "./entities/user";
 
 import "reflect-metadata";
 
