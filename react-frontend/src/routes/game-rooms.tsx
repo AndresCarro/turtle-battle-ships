@@ -46,7 +46,10 @@ export function GameRoomsPage() {
     if (!gameRoom) {
         return false;
     }
-    router.navigate({to: `/game/${gameRoom.id}`});
+    router.navigate({
+      to: `/game/${gameRoom.id}`,
+      search: { username: username.trim() }
+    });
     return true;
   };
   useEffect(() => {
@@ -90,7 +93,8 @@ export function GameRoomsPage() {
                         return;
                     }
                     router.navigate({ 
-                        to: `/game/${gameRoom.id}`
+                        to: `/game/${gameRoom.id}`,
+                        search: { username: username.trim() }
                     });
                 }} key={gameRoom.id}/>
               ))}

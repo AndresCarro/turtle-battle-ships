@@ -1,7 +1,7 @@
 import type { Game } from "@/models/models";
 import { API_URL, handleResponse } from "./api-utils";
 
-const gamesEndpointPrefix = "games";
+export const gamesEndpointPrefix = "games";
 
 export const GameRoomService = {
     createGameRoom: async (gameRoomName: string, username: string): Promise<Game> => {

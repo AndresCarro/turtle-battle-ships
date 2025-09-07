@@ -34,6 +34,11 @@ const gameRoomsRoute = createRoute({
 const gameRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/game/$id',
+  validateSearch: (search: Record<string, unknown>) => {
+    return {
+      username: (search.username as string) || '',
+    }
+  },
   component: () => <GamePage />,
 });
 

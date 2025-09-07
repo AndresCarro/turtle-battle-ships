@@ -1,13 +1,14 @@
 import type { Ship, ShipInput, Shot } from "@/models/models";
 import { API_URL, handleResponse } from "./api-utils";
+import { gamesEndpointPrefix } from "./game-room-service";
 
-export const gamesApi = {
+export const GameService = {
   postFleet: async (
     id: number,
     player: string,
     ships: ShipInput[]
   ): Promise<Ship[]> => {
-    const res = await fetch(`${API_URL}/${id}/fleet`, {
+    const res = await fetch(`${API_URL}/${gamesEndpointPrefix}/${id}/fleet`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ player, ships }),
@@ -17,7 +18,7 @@ export const gamesApi = {
 
   getFleets: async (id: number, player?: string): Promise<Ship[]> => {
     const query = player ? `?player=${player}` : "";
-    const res = await fetch(`${API_URL}/${id}/fleet${query}`);
+    const res = await fetch(`${API_URL}/${gamesEndpointPrefix}/${id}/fleet${query}`);
     return handleResponse<Ship[]>(res);
   },
 
@@ -27,7 +28,7 @@ export const gamesApi = {
     x: number,
     y: number
   ): Promise<Shot> => {
-    const res = await fetch(`${API_URL}/${id}/shots`, {
+    const res = await fetch(`${API_URL}/${gamesEndpointPrefix}/${id}/shots`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ username, x, y }),
@@ -36,7 +37,7 @@ export const gamesApi = {
   },
 
   getShots: async (id: number): Promise<Shot[]> => {
-    const res = await fetch(`${API_URL}/${id}/shots`);
+    const res = await fetch(`${API_URL}/${gamesEndpointPrefix}/${id}/shots`);
     return handleResponse<Shot[]>(res);
   },
 };

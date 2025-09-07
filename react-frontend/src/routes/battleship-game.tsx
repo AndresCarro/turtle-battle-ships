@@ -1,4 +1,4 @@
-import { useParams } from '@tanstack/react-router'
+import { useParams, useSearch } from '@tanstack/react-router'
 import { BattleshipGame } from '@/components/battleship-game'
 import { useEffect, useState } from 'react';
 import type { Game } from '@/models/models';
@@ -20,6 +20,7 @@ const PageBorder = ({children}:{children: React.ReactNode}) => (
 export function GamePage() {
   const [gameRoom, setGameRoom] = useState<Game>();
   const params = useParams({ strict: false }) as { id: string };
+  const { username } = useSearch({ from: '/game/$id' });
   const id = params.id;
 
   useEffect(() => {
@@ -37,13 +38,15 @@ export function GamePage() {
   }, [id]);
 
   if (!gameRoom) {
-    <PageBorder>
-      <Card>
-        <h2 className="text-2xl font-semibold text-blue-800 dark:text-blue-200">
-          Loading...
-        </h2>
-      </Card>
-    </PageBorder>
+    return (
+      <PageBorder>
+        <Card>
+          <h2 className="text-2xl font-semibold text-blue-800 dark:text-blue-200">
+            Loading...
+          </h2>
+        </Card>
+      </PageBorder>
+    );
   }
 
   if (!gameRoom?.player2) {
@@ -51,16 +54,17 @@ export function GamePage() {
       <PageBorder>
         <Card className="p-6">
           <h2 className="text-2xl font-semibold text-blue-800 dark:text-blue-200">
-              Waiting for another player...
+              {gameRoom.name}
           </h2>
+          <h6 className='text-white'>Waiting for another player...</h6>
         </Card>
       </PageBorder>
-    )
+    );
   }
   
   return (
     <PageBorder>
-      <BattleshipGame />
+      <BattleshipGame gameRoom={gameRoom} currentUsername={username}/>
     </PageBorder>
   )
 };
