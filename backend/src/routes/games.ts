@@ -8,7 +8,7 @@ import {
   listGames,
   postFleet,
   postShot,
-} from "../controllers/gamesControllers";
+} from "../controllers/games-controllers";
 import { createUser } from "../controllers/user-controller";
 
 const router = Router();

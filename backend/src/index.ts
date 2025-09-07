@@ -6,7 +6,7 @@ dotenv.config({ path: "./.env" });
 
 import cors from "cors";
 import express from "express";
-import { AppDataSource } from "./dataSource";
+import { AppDataSource } from "./data-source";
 import router from "./routes/games";
 
 const app = express();
@@ -17,9 +17,9 @@ AppDataSource.initialize()
   .then(() => {
     console.log("Data Source has been initialized!");
     app.use("/", router);
-    const PORT = process.env.PORT || 3000;
-    app.listen(PORT, () =>
-      console.log(`Server running on http://localhost:${PORT}`)
+    const SERVER_PORT = process.env.SERVER_PORT || 3000;
+    app.listen(SERVER_PORT, () =>
+      console.log(`Server running on http://localhost:${SERVER_PORT}`)
     );
   })
   .catch((err) =>

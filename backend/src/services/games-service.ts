@@ -1,13 +1,16 @@
-import { AppDataSource } from "../dataSource";
-import { Game, GameStatus } from "../entities/Game";
-import { getShipTypeSize, Orientation, Ship, ShipType } from "../entities/Ship";
-import { Shot } from "../entities/Shot";
+import { AppDataSource } from "../data-source";
+import { Game, GameStatus } from "../entities/game";
+import { getShipTypeSize, Orientation, Ship, ShipType } from "../entities/ship";
+import { Shot } from "../entities/shot";
 
 const gameRepository = AppDataSource.getRepository(Game);
 const shipRepository = AppDataSource.getRepository(Ship);
 const shotRepository = AppDataSource.getRepository(Shot);
 
-export const createGameService = async (username: string, gameRoomName: string) => {
+export const createGameService = async (
+  username: string,
+  gameRoomName: string
+) => {
   const game = gameRepository.create({ player1: username, name: gameRoomName });
   return gameRepository.save(game);
 };

@@ -1,0 +1,32 @@
+# Dependencias locales
+node_modules
+npm-debug.log
+yarn-error.log
+
+# Builds locales
+dist
+build
+
+# Archivos de entorno (no subir a imagen)
+.env
+.env.local
+.env.development
+.env.production
+.env.test
+
+# Configuración de IDE
+.vscode
+.idea
+
+# Archivos del sistema
+.DS_Store
+Thumbs.db
+
+# Git
+.git
+.gitignore
+
+# Docker scripts
+docker-deploy-to-hub.sh
+docker-compose.yml
+.dockerfile
