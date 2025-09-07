@@ -6,6 +6,7 @@ import { Shot } from "./entities/shot";
 import { User } from "./entities/user";
 
 import "reflect-metadata";
+import { GameReplay } from "./entities/game-replay";
 
 export const AppDataSource = new DataSource({
   type: "postgres",
@@ -16,5 +17,5 @@ export const AppDataSource = new DataSource({
   database: process.env.DB_NAME,
   synchronize: true,
   logging: false,
-  entities: [Game, Ship, Shot, User],
+  entities: [Game, Ship, Shot, User, GameReplay],
 });

@@ -2,6 +2,7 @@ import { AppDataSource } from "../data-source";
 import { Game, GameStatus } from "../entities/game";
 import { getShipTypeSize, Orientation, Ship, ShipType } from "../entities/ship";
 import { Shot } from "../entities/shot";
+import { saveGameReplay } from "./game-replay-services";
 
 const gameRepository = AppDataSource.getRepository(Game);
 const shipRepository = AppDataSource.getRepository(Ship);
@@ -85,6 +86,15 @@ export const postFleetService = async (
 
   // Guardarlas en la base de datos, TypeORM devuelve Ship[]
   const savedShips = await shipRepository.save(ships);
+
+  // Chequeamos si terminaron de setupear las ships
+  const allShips = await shipRepository.find({ where: { game: { id } } });
+  const players = Array.from(new Set(allShips.map((s) => s.player)));
+  if (players.length === 2) {
+    game.status = GameStatus.IN_PROGRESS;
+    await gameRepository.save(game);
+  }
+
   return savedShips;
 };
 
@@ -102,14 +112,14 @@ export const postShotService = async (
 ) => {
   const game = await gameRepository.findOne({
     where: { id },
-    relations: ["ships"],
+    relations: ["ships", "shots"],
   });
   if (!game) throw new Error("Game not found");
   if (game.status != GameStatus.IN_PROGRESS)
     throw Error("Game is not in a valid state, it should be in progress.");
 
   // Obtener flota del oponente
-  const opponentShips = game.ships.filter((s) => s.player !== username);
+  const opponentShips = (game.ships || []).filter((s) => s.player !== username);
 
   let hit = false;
 
@@ -130,14 +140,16 @@ export const postShotService = async (
     }
   }
 
-  const shot = shotRepository.save(
+  const shot = await shotRepository.save(
     shotRepository.create({ player: username, x, y, hit, game })
   );
 
   if (checkIfGameFinished(game, username)) {
     game.status = GameStatus.FINISHED;
-    gameRepository.save(game);
+    await gameRepository.save(game);
   }
+  saveGameReplay(game.id);
+
   return shot;
 };
 
