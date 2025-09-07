@@ -1,7 +1,7 @@
 import { AppDataSource } from "../data-source";
-import { Game, GameStatus } from "../entities/game";
-import { getShipTypeSize, Orientation, Ship, ShipType } from "../entities/ship";
-import { Shot } from "../entities/shot";
+import { Game, GameStatus } from "../entities/Game";
+import { getShipTypeSize, Orientation, Ship, ShipType } from "../entities/Ship";
+import { Shot } from "../entities/Shot";
 import { saveGameReplay } from "./game-replay-services";
 
 const gameRepository = AppDataSource.getRepository(Game);
@@ -67,8 +67,30 @@ export const postFleetService = async (
 
   for (const s of shipsInput) typeCount[s.type]++;
   for (const type of Object.keys(typeCount) as ShipType[]) {
-    if (typeCount[type] !== 2)
-      throw new Error(`Player must place exactly 2 ships of type ${type}`);
+    switch (type) {
+      case ShipType.CARRIER:
+        if (typeCount[type] !== 1) {
+          throw new Error(`Player must place exactly 1 ships of type ${type}`);    
+        }
+        break;
+      case ShipType.BATTLESHIP:
+        if (typeCount[type] !== 1) {
+          throw new Error(`Player must place exactly 1 ships of type ${type}`);    
+        }
+        break;
+      case ShipType.SUBMARINE:
+        if (typeCount[type] !== 2) {
+          throw new Error(`Player must place exactly 2 ships of type ${type}`);    
+        }
+        break;
+      case ShipType.DESTROYER:
+        if (typeCount[type] !== 1) {
+          throw new Error(`Player must place exactly 1 ships of type ${type}`);    
+        }
+        break;
+      default:
+        throw new Error(`Incorrect ship type ${type}`);  
+    }
   }
 
   // Crear instancias de Ship correctamente tipadas

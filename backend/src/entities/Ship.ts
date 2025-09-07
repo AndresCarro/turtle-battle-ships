@@ -1,5 +1,5 @@
 import { Column, Entity, ManyToOne, PrimaryGeneratedColumn } from "typeorm";
-import { Game } from "./game";
+import { Game } from "./Game";
 
 export enum ShipType {
   CARRIER = "CARRIER",
