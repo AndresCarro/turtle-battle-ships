@@ -1,6 +1,6 @@
 import { Column, Entity, OneToMany, PrimaryGeneratedColumn } from "typeorm";
-import { Ship } from "./ship";
-import { Shot } from "./shot";
+import { Ship } from "./Ship";
+import { Shot } from "./Shot";
 
 export enum GameStatus {
   WAITING_FOR_PLAYER = "WAITING_FOR_PLAYER",

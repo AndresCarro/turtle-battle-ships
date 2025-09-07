@@ -68,7 +68,7 @@ export const postFleet = async (req: Request, res: Response) => {
       return res.status(400).json({ error: "player and ships are required" });
 
     const savedShips = await postFleetService(Number(id), player, ships);
-    res.json(savedShips);
+    res.status(201).json(savedShips);
   } catch (err: any) {
     res.status(400).json({ error: err.message });
   }
