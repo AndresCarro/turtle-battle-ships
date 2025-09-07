@@ -5,188 +5,10 @@ import { Card } from "./ui/card"
 import { Button } from "./ui/button"
 import { Badge } from "./ui/badge"
 import { GameService } from "@/services/games-service"
+import { GameRoomService } from "@/services/game-room-service"
 import { useToast } from "@/hooks/use-toast"
 import type { Game, ShipInput } from "@/models/models"
-
-export type CellState = "empty" | "ship" | "hit" | "miss" | "sunk"
-
-export interface Ship {
-  name: string
-  size: number
-  placed: boolean
-  positions: { row: number; col: number }[]
-  hits: number
-  sunk: boolean
-}
-
-export interface GameState {
-  playerBoard: CellState[][]
-  enemyBoard: CellState[][]
-  playerShips: CellState[][]
-  enemyShips: CellState[][]
-  currentPlayer: "player" | "enemy"
-  gamePhase: "placement" | "battle" | "gameOver"
-  winner: "player" | "enemy" | null
-  playerStats: { hits: number; misses: number; shipsRemaining: number }
-  enemyStats: { hits: number; misses: number; shipsRemaining: number }
-}
-
-export interface PlacementState {
-  selectedShip: number | null
-  orientation: "horizontal" | "vertical"
-  ships: Ship[]
-}
-
-const BOARD_SIZE = 10
-
-const INITIAL_SHIPS: Ship[] = [
-  { name: "Carrier", size: 5, placed: false, positions: [], hits: 0, sunk: false },
-  { name: "Battleship", size: 4, placed: false, positions: [], hits: 0, sunk: false },
-  { name: "Cruiser", size: 3, placed: false, positions: [], hits: 0, sunk: false },
-  { name: "Submarine", size: 3, placed: false, positions: [], hits: 0, sunk: false },
-  { name: "Destroyer", size: 2, placed: false, positions: [], hits: 0, sunk: false },
-]
-
-// Initialize empty board
-const createEmptyBoard = (): CellState[][] => {
-  return Array(BOARD_SIZE)
-    .fill(null)
-    .map(() => Array(BOARD_SIZE).fill("empty"))
-}
-
-// Ship type mapping utilities
-const frontendToBackendShipType = (frontendName: string): ShipInput['type'] => {
-  const mapping: Record<string, ShipInput['type']> = {
-    "Carrier": "CARRIER",
-    "Battleship": "BATTLESHIP", 
-    "Cruiser": "SUBMARINE", // Assuming Cruiser maps to SUBMARINE
-    "Submarine": "SUBMARINE",
-    "Destroyer": "DESTROYER"
-  }
-  return mapping[frontendName] || "DESTROYER"
-}
-
-const backendToFrontendShipName = (backendType: ShipInput['type']): string => {
-  const mapping: Record<ShipInput['type'], string> = {
-    "CARRIER": "Carrier",
-    "BATTLESHIP": "Battleship",
-    "SUBMARINE": "Submarine", // Using Submarine for backend SUBMARINE
-    "DESTROYER": "Destroyer"
-  }
-  return mapping[backendType] || "Destroyer"
-}
-
-// Convert frontend ship positions to backend ShipInput format
-const convertShipToBackendFormat = (ship: Ship): ShipInput => {
-  if (ship.positions.length === 0) {
-    throw new Error(`Ship ${ship.name} has no positions`)
-  }
-  
-  const firstPos = ship.positions[0]
-  const orientation: ShipInput['orientation'] = 
-    ship.positions.length > 1 && ship.positions[1].row === firstPos.row 
-      ? "HORIZONTAL" 
-      : "VERTICAL"
-  
-  return {
-    type: frontendToBackendShipType(ship.name),
-    x: firstPos.col, // Frontend col -> Backend x
-    y: firstPos.row, // Frontend row -> Backend y  
-    orientation
-  }
-}
-
-// Convert backend Ship to frontend Ship format
-const convertBackendShipToFrontend = (backendShip: import("@/models/models").Ship): Ship => {
-  const positions: { row: number; col: number }[] = []
-  
-  for (let i = 0; i < backendShip.length; i++) {
-    if (backendShip.orientation === "HORIZONTAL") {
-      positions.push({ 
-        row: backendShip.y, // Backend y -> Frontend row
-        col: backendShip.x + i // Backend x -> Frontend col
-      })
-    } else {
-      positions.push({ 
-        row: backendShip.y + i, // Backend y -> Frontend row
-        col: backendShip.x // Backend x -> Frontend col
-      })
-    }
-  }
-  
-  return {
-    name: backendToFrontendShipName(backendShip.type),
-    size: backendShip.length,
-    placed: true,
-    positions,
-    hits: 0, // Will be calculated from shots
-    sunk: false // Will be calculated from hits
-  }
-}
-
-const canPlaceShip = (
-  board: CellState[][],
-  row: number,
-  col: number,
-  size: number,
-  orientation: "horizontal" | "vertical",
-): boolean => {
-  if (orientation === "horizontal") {
-    if (col + size > BOARD_SIZE) return false
-    for (let i = 0; i < size; i++) {
-      if (board[row][col + i] === "ship") return false
-    }
-  } else {
-    if (row + size > BOARD_SIZE) return false
-    for (let i = 0; i < size; i++) {
-      if (board[row + i][col] === "ship") return false
-    }
-  }
-  return true
-}
-
-const placeShip = (
-  board: CellState[][],
-  row: number,
-  col: number,
-  size: number,
-  orientation: "horizontal" | "vertical",
-): { board: CellState[][]; positions: { row: number; col: number }[] } => {
-  const newBoard = board.map((row) => [...row])
-  const positions: { row: number; col: number }[] = []
-
-  if (orientation === "horizontal") {
-    for (let i = 0; i < size; i++) {
-      newBoard[row][col + i] = "ship"
-      positions.push({ row, col: col + i })
-    }
-  } else {
-    for (let i = 0; i < size; i++) {
-      newBoard[row + i][col] = "ship"
-      positions.push({ row: row + i, col })
-    }
-  }
-
-  return { board: newBoard, positions }
-}
-
-const checkShipSunk = (ship: Ship, board: CellState[][]): boolean => {
-  return ship.positions.every((pos) => board[pos.row][pos.col] === "hit" || board[pos.row][pos.col] === "sunk")
-}
-
-const checkWinCondition = (ships: Ship[]): boolean => {
-  return ships.every((ship) => ship.sunk)
-}
-
-const markShipAsSunk = (board: CellState[][], ship: Ship): CellState[][] => {
-  const newBoard = board.map((row) => [...row])
-  ship.positions.forEach((pos) => {
-    if (newBoard[pos.row][pos.col] === "hit") {
-      newBoard[pos.row][pos.col] = "sunk"
-    }
-  })
-  return newBoard
-}
+import { canPlaceShip, checkShipSunk, convertBackendShipToFrontend, convertShipToBackendFormat, createEmptyBoard, INITIAL_SHIPS, markShipAsSunk, placeShip, type GameState, type PlacementState, type Ship } from "./battleship-game-utils"
 
 export function BattleshipGame({gameRoom, currentUsername}:{gameRoom: Game, currentUsername: string}) {
   const { toast } = useToast()
@@ -222,7 +44,8 @@ export function BattleshipGame({gameRoom, currentUsername}:{gameRoom: Game, curr
   const [lastShotCount, setLastShotCount] = useState(0)
   
   const fleetPollingInterval = useRef<NodeJS.Timeout | null>(null)
-  const shotPollingInterval = useRef<NodeJS.Timeout | null>(null);
+  const shotPollingInterval = useRef<NodeJS.Timeout | null>(null)
+  const gameStatusPollingInterval = useRef<NodeJS.Timeout | null>(null)
 
   const startFleetPolling = () => {
     if (fleetPollingInterval.current) {
@@ -287,6 +110,7 @@ export function BattleshipGame({gameRoom, currentUsername}:{gameRoom: Game, curr
       }))
       
       startShotPolling()
+      startGameStatusPolling()
       
       toast({
         title: "Battle begins!",
@@ -320,6 +144,40 @@ export function BattleshipGame({gameRoom, currentUsername}:{gameRoom: Game, curr
         console.error("Failed to get shots:", error)
       }
     }, 1000)
+  }
+  
+  const startGameStatusPolling = () => {
+    if (gameStatusPollingInterval.current) {
+      clearInterval(gameStatusPollingInterval.current)
+    }
+    
+    gameStatusPollingInterval.current = setInterval(async () => {
+      try {
+        const updatedGameRoom = await GameRoomService.getGameRoom(gameRoom.id.toString())
+        
+        // Check if game status indicates a win condition
+        if (updatedGameRoom.status === "FINISHED" || updatedGameRoom.status === "COMPLETED") {
+          // Stop all polling when game is finished
+          if (shotPollingInterval.current) {
+            clearInterval(shotPollingInterval.current)
+            shotPollingInterval.current = null
+          }
+          if (gameStatusPollingInterval.current) {
+            clearInterval(gameStatusPollingInterval.current)
+            gameStatusPollingInterval.current = null
+          }
+          
+          // Set game to over state - the server should have the winner information
+          setGameState(prev => ({
+            ...prev,
+            gamePhase: "gameOver",
+            winner: "player" // This could be enhanced to get actual winner from server if available
+          }))
+        }
+      } catch (error) {
+        console.error("Failed to check game status:", error)
+      }
+    }, 2000) // Poll every 2 seconds
   }
   
   const processShotsUpdate = async (shots: import("@/models/models").Shot[]) => {
@@ -359,41 +217,11 @@ export function BattleshipGame({gameRoom, currentUsername}:{gameRoom: Game, curr
     // Determine whose turn it is (player with fewer shots goes next)
     const isPlayerTurn = playerShots.length <= opponentShots.length
     
-    updateShipStatus(playerShipsData, opponentShots, setPlayerShipsData)
-    updateShipStatus(enemyShipsData, playerShots, setEnemyShipsData)
-    
-    const playerWon = enemyShipsData.every(ship => ship.sunk)
-    const opponentWon = playerShipsData.every(ship => ship.sunk)
-    
-    setGameState(prev => ({
-      ...prev,
-      playerBoard: newPlayerBoard,
-      enemyBoard: newEnemyBoard,
-      currentPlayer: isPlayerTurn ? "player" : "enemy",
-      gamePhase: playerWon || opponentWon ? "gameOver" : "battle",
-      winner: playerWon ? "player" : opponentWon ? "enemy" : null,
-      playerStats: {
-        hits: enemyHits,
-        misses: playerShots.length - enemyHits,
-        shipsRemaining: enemyShipsData.filter(ship => !ship.sunk).length
-      },
-      enemyStats: {
-        hits: playerHits,
-        misses: opponentShots.length - playerHits,
-        shipsRemaining: playerShipsData.filter(ship => !ship.sunk).length
-      }
-    }))
-  }
-  
-  const updateShipStatus = (
-    ships: Ship[], 
-    shots: import("@/models/models").Shot[], 
-    setShips: React.Dispatch<React.SetStateAction<Ship[]>>
-  ) => {
-    const updatedShips = ships.map(ship => {
+    // Update ship status and get the updated ships for win condition check
+    const updatedPlayerShips = playerShipsData.map(ship => {
       let hits = 0
       ship.positions.forEach(pos => {
-        const shotHit = shots.find(shot => 
+        const shotHit = opponentShots.find(shot => 
           shot.x === pos.col && shot.y === pos.row && shot.hit
         )
         if (shotHit) hits++
@@ -406,9 +234,43 @@ export function BattleshipGame({gameRoom, currentUsername}:{gameRoom: Game, curr
       }
     })
     
-    setShips(updatedShips)
+    const updatedEnemyShips = enemyShipsData.map(ship => {
+      let hits = 0
+      ship.positions.forEach(pos => {
+        const shotHit = playerShots.find(shot => 
+          shot.x === pos.col && shot.y === pos.row && shot.hit
+        )
+        if (shotHit) hits++
+      })
+      
+      return {
+        ...ship,
+        hits,
+        sunk: hits === ship.size
+      }
+    })
+    
+    setPlayerShipsData(updatedPlayerShips)
+    setEnemyShipsData(updatedEnemyShips)
+    
+    setGameState(prev => ({
+      ...prev,
+      playerBoard: newPlayerBoard,
+      enemyBoard: newEnemyBoard,
+      currentPlayer: isPlayerTurn ? "player" : "enemy",
+      playerStats: {
+        hits: enemyHits,
+        misses: playerShots.length - enemyHits,
+        shipsRemaining: updatedEnemyShips.filter(ship => !ship.sunk).length
+      },
+      enemyStats: {
+        hits: playerHits,
+        misses: opponentShots.length - playerHits,
+        shipsRemaining: updatedPlayerShips.filter(ship => !ship.sunk).length
+      }
+    }))
   }
-
+  
   useEffect(() => {
     return () => {
       if (fleetPollingInterval.current) {
@@ -419,6 +281,10 @@ export function BattleshipGame({gameRoom, currentUsername}:{gameRoom: Game, curr
         clearInterval(shotPollingInterval.current)
         shotPollingInterval.current = null
       }
+      if (gameStatusPollingInterval.current) {
+        clearInterval(gameStatusPollingInterval.current)
+        gameStatusPollingInterval.current = null
+      }
     }
   }, [])
   
@@ -427,6 +293,10 @@ export function BattleshipGame({gameRoom, currentUsername}:{gameRoom: Game, curr
       if (shotPollingInterval.current) {
         clearInterval(shotPollingInterval.current)
         shotPollingInterval.current = null
+      }
+      if (gameStatusPollingInterval.current) {
+        clearInterval(gameStatusPollingInterval.current)
+        gameStatusPollingInterval.current = null
       }
     }
   }, [gameState.gamePhase]);
@@ -486,15 +356,14 @@ export function BattleshipGame({gameRoom, currentUsername}:{gameRoom: Game, curr
         row  // Frontend row -> Backend y
       )
       
-      // Update local board immediately for better UX
       const newEnemyBoard = [...gameState.enemyBoard.map((row) => [...row])]
       newEnemyBoard[row][col] = shotResult.hit ? "hit" : "miss"
       
+      const updatedEnemyShips = [...enemyShipsData]
       let hitShip: Ship | null = null
       
       if (shotResult.hit) {
-        // Find the ship that was hit
-        hitShip = enemyShipsData.find((ship) => 
+        hitShip = updatedEnemyShips.find((ship) => 
           ship.positions.some((pos) => pos.row === row && pos.col === col)
         ) || null
 
@@ -509,22 +378,20 @@ export function BattleshipGame({gameRoom, currentUsername}:{gameRoom: Game, curr
         }
       }
 
+      setEnemyShipsData(updatedEnemyShips)
+
       const newPlayerStats = {
         ...gameState.playerStats,
         hits: shotResult.hit ? gameState.playerStats.hits + 1 : gameState.playerStats.hits,
         misses: !shotResult.hit ? gameState.playerStats.misses + 1 : gameState.playerStats.misses,
-        shipsRemaining: enemyShipsData.filter((ship) => !ship.sunk).length,
+        shipsRemaining: updatedEnemyShips.filter((ship) => !ship.sunk).length,
       }
-
-      const playerWon = checkWinCondition(enemyShipsData)
 
       setGameState((prev) => ({
         ...prev,
         enemyBoard: newEnemyBoard,
-        currentPlayer: playerWon ? "player" : "enemy",
+        currentPlayer: "enemy",
         playerStats: newPlayerStats,
-        gamePhase: playerWon ? "gameOver" : "battle",
-        winner: playerWon ? "player" : null,
       }))
       
     } catch (error) {
@@ -545,12 +412,10 @@ export function BattleshipGame({gameRoom, currentUsername}:{gameRoom: Game, curr
     try {
       setIsSubmittingFleet(true)
       
-      // Convert placed ships to backend format
       const shipsToSubmit: ShipInput[] = placementState.ships
         .filter(ship => ship.placed)
         .map(ship => convertShipToBackendFormat(ship))
       
-      // Submit player's fleet to backend
       await GameService.postFleet(gameRoom.id, currentUsername, shipsToSubmit)
       setIsFleetSubmitted(true)
       setIsWaitingForOpponent(true)
@@ -560,7 +425,6 @@ export function BattleshipGame({gameRoom, currentUsername}:{gameRoom: Game, curr
         description: "Waiting for opponent to place their ships...",
       })
       
-      // Start polling for opponent's fleet status
       startFleetPolling()
       
     } catch (error) {
