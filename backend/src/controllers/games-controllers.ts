@@ -95,7 +95,7 @@ export const postShot = async (req: Request, res: Response) => {
     if (username === undefined || x === undefined || y === undefined)
       return res.status(400).json({ error: "username, x and y are required" });
     const shot = await postShotService(Number(id), username, x, y);
-    res.json(shot);
+    res.status(200).json(shot);
   } catch (err: any) {
     if (err.message === "Game not found")
       return res.status(404).json({ error: err.message });

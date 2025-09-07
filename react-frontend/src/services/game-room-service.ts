@@ -30,5 +30,5 @@ export const GameRoomService = {
     getGameRoom: async (id: string): Promise<Game> => {
         const res = await fetch(`${API_URL}/${gamesEndpointPrefix}/${id}`);
         return handleResponse<Game>(res);
-  },
+    },
 }
