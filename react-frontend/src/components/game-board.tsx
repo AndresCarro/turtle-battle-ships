@@ -1,13 +1,13 @@
 
 import { cn } from "@/lib/utils"
-import type { CellState } from "./battleship-game"
+import { type CellState, GameStatus } from "./battleship-game-utils"
 
 interface GameBoardProps {
   board: CellState[][]
   ships: CellState[][]
   onCellClick: (row: number, col: number) => void
   isPlayerBoard: boolean
-  gamePhase: "placement" | "battle" | "gameOver"
+  gamePhase: GameStatus
 }
 
 export function GameBoard({ board, ships, onCellClick, isPlayerBoard, gamePhase }: GameBoardProps) {
@@ -77,7 +77,7 @@ export function GameBoard({ board, ships, onCellClick, isPlayerBoard, gamePhase 
               key={`${rowIndex}-${colIndex}`}
               className={getCellClassName(rowIndex, colIndex)}
               onClick={() => onCellClick(rowIndex, colIndex)}
-              disabled={gamePhase === "gameOver"}
+              disabled={gamePhase === GameStatus.FINISHED}
             >
               {getCellContent(rowIndex, colIndex)}
             </button>
