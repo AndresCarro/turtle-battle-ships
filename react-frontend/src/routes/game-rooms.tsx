@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { useEffect, useState } from 'react';
 import { GameRoomService } from '@/services/game-room-service';
 import { CreateGameRoomDialog } from '@/components/create-game-room-dialog';
+import { RefreshCw } from 'lucide-react';
 import type { Game } from '@/models/models';
 
 const GameRoomTableHeader = () => (
@@ -72,14 +73,23 @@ export function GameRoomsPage() {
             <h2 className="text-2xl font-semibold text-blue-800 dark:text-blue-200">
               Available Game Rooms
             </h2>
-            <Button
-              className="bg-green-600 hover:bg-green-700 text-white"
-              onClick={() => {
-                setIsModalOpen(true);
-              }}
-            >
-              Create game room
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                className="bg-blue-600 hover:bg-blue-700 text-white"
+                onClick={getGameRooms}
+              >
+                <RefreshCw className="w-4 h-4 mr-2" />
+                Refresh
+              </Button>
+              <Button
+                className="bg-green-600 hover:bg-green-700 text-white"
+                onClick={() => {
+                  setIsModalOpen(true);
+                }}
+              >
+                Create game room
+              </Button>
+            </div>
           </div>
           <Table>
             <GameRoomTableHeader />
