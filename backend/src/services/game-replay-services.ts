@@ -2,7 +2,7 @@ import { PutObjectCommand } from "@aws-sdk/client-s3";
 import { randomUUID } from "crypto";
 import { s3 } from "../data-s3-client";
 import { AppDataSource } from "../data-source";
-import { Game } from "../entities/game";
+import { Game } from "../entities/Game";
 import { GameReplay } from "../entities/game-replay";
 
 const replayRepository = AppDataSource.getRepository(GameReplay);
