@@ -5,7 +5,7 @@ import {
   ManyToOne,
   PrimaryGeneratedColumn,
 } from "typeorm";
-import { Game } from "./game";
+import { Game } from "./Game";
 
 @Entity()
 export class GameReplay {
