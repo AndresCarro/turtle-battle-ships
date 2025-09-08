@@ -66,7 +66,7 @@ export function BattleshipGame({gameRoom, currentUsername}:{gameRoom: Game, curr
           setGameState(prev => ({
             ...prev,
             gameStatus: GameStatus.FINISHED,
-            winner: "player"
+            winner: updatedGameRoom.winner === currentUsername ? 'player' : 'enemy'
           }));
           return;
         }
@@ -81,13 +81,14 @@ export function BattleshipGame({gameRoom, currentUsername}:{gameRoom: Game, curr
           setGameState(prev => ({
             ...prev,
             gameStatus: GameStatus.IN_PROGRESS,
+            currentPlayer: updatedGameRoom.currentTurn === currentUsername ? 'player' : 'enemy',
           }))
         }
       } catch (error) {
         console.error("Failed to check game status:", error)
       }
     }, 2000) // Poll every 2 seconds
-  }, [gameRoom.id]);
+  }, [gameRoom.id, currentUsername]);
 
   const initializeBattlePhase = async () => {
     try {
@@ -192,10 +193,6 @@ export function BattleshipGame({gameRoom, currentUsername}:{gameRoom: Game, curr
       }
     })
     
-    // Determine whose turn it is (player with fewer shots goes next)
-    const isPlayerTurn = playerShots.length <= opponentShots.length
-    
-    // Update ship status and get the updated ships for win condition check
     const updatedPlayerShips = playerShipsData.map(ship => {
       let hits = 0
       ship.positions.forEach(pos => {
@@ -235,7 +232,7 @@ export function BattleshipGame({gameRoom, currentUsername}:{gameRoom: Game, curr
       ...prev,
       playerBoard: newPlayerBoard,
       enemyBoard: newEnemyBoard,
-      currentPlayer: isPlayerTurn ? "player" : "enemy",
+      currentPlayer: gameState.currentPlayer,
       playerStats: {
         hits: enemyHits,
         misses: playerShots.length - enemyHits,
@@ -315,7 +312,7 @@ export function BattleshipGame({gameRoom, currentUsername}:{gameRoom: Game, curr
 
     if (gameState.gameStatus !== GameStatus.IN_PROGRESS) return
     if (isPlayerBoard) return
-    if (gameState.currentPlayer !== "player") return
+    if (gameState.currentPlayer !== 'player') return
     if (isSubmittingShot) return
     if (gameState.enemyBoard[row][col] !== "empty") return
 
@@ -326,7 +323,7 @@ export function BattleshipGame({gameRoom, currentUsername}:{gameRoom: Game, curr
         currentUsername, 
         col, // Frontend col -> Backend x
         row  // Frontend row -> Backend y
-      )
+      );
       
       const newEnemyBoard = [...gameState.enemyBoard.map((row) => [...row])]
       newEnemyBoard[row][col] = shotResult.hit ? "hit" : "miss"
@@ -362,7 +359,6 @@ export function BattleshipGame({gameRoom, currentUsername}:{gameRoom: Game, curr
       setGameState((prev) => ({
         ...prev,
         enemyBoard: newEnemyBoard,
-        currentPlayer: "enemy",
         playerStats: newPlayerStats,
       }))
       

@@ -3,6 +3,8 @@ export type Game = {
   name: string;
   player1: string;
   player2?: string;
+  currentTurn?: string;
+  winner?: string;
   status: string;
 };
 

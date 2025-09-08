@@ -23,6 +23,12 @@ export class Game {
   @Column()
   name!: string;
 
+  @Column({ nullable: true })
+  currentTurn!: string;
+
+  @Column({ nullable: true })
+  winner!: string;
+
   @Column({
     type: "enum",
     enum: GameStatus,
