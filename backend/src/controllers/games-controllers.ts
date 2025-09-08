@@ -51,7 +51,7 @@ export const getGame = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const game = await getGameService(Number(id));
-    res.json(game);
+    res.status(200).json(game);
   } catch (err: any) {
     if (err.message === "Game not found")
       return res.status(404).json({ error: err.message });
@@ -99,7 +99,7 @@ export const postShot = async (req: Request, res: Response) => {
   } catch (err: any) {
     if (err.message === "Game not found")
       return res.status(404).json({ error: err.message });
-    res.status(500).json({ error: err.message });
+    res.status(409).json({ error: err.message });
   }
 };
 

@@ -23,6 +23,7 @@ export const joinGameService = async (id: number, username: string) => {
 
   game.player2 = username;
   game.status = GameStatus.SHIPS_SETUP;
+  game.currentTurn = game.player1;
   return gameRepository.save(game);
 };
 
@@ -139,9 +140,14 @@ export const postShotService = async (
   if (!game) throw new Error("Game not found");
   if (game.status != GameStatus.IN_PROGRESS)
     throw Error("Game is not in a valid state, it should be in progress.");
+  if (game.currentTurn !== username) {
+    throw Error(`User ${username} cannot make a shot. It is not his turn`);
+  }
 
-  // Obtener flota del oponente
-  const opponentShips = (game.ships || []).filter((s) => s.player !== username);
+  const opponentUsername = game.player1 === username ? game.player2 : game.player1;
+
+  const opponentShips = await getFleetsService(game.id, opponentUsername);  
+  console.log("OPPONENTS SHIP ", opponentShips);
 
   let hit = false;
 
@@ -168,9 +174,14 @@ export const postShotService = async (
 
   if (checkIfGameFinished(game, username)) {
     game.status = GameStatus.FINISHED;
+    game.winner = username;
     await gameRepository.save(game);
+    saveGameReplay(game.id);
+    return;
   }
-  saveGameReplay(game.id);
+
+  game.currentTurn = game.player1 === username ? game.player2 : game.player1;
+  await gameRepository.save(game);
 
   return shot;
 };
