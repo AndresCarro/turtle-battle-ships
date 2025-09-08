@@ -1,4 +1,10 @@
-import { Column, Entity, ManyToOne, PrimaryGeneratedColumn } from "typeorm";
+import {
+  Column,
+  Entity,
+  JoinColumn,
+  ManyToOne,
+  PrimaryGeneratedColumn,
+} from "typeorm";
 import { Game } from "./Game";
 
 export enum ShipType {
@@ -50,6 +56,10 @@ export class Ship {
   @Column()
   length!: number;
 
-  @ManyToOne(() => Game, (game) => game.ships)
+  @ManyToOne(() => Game, (game) => game.ships, { onDelete: "CASCADE" })
+  @JoinColumn({ name: "gameId" })
   game!: Game;
+
+  @Column()
+  gameId!: number;
 }
