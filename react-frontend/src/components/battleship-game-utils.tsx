@@ -1,8 +1,9 @@
 import type { ShipInput } from "@/models/models"
 
-export type CellState = "empty" | "ship" | "hit" | "miss" | "sunk"
+export type CellState = "empty" | "ship" | "hit" | "miss" | "sunk";
 
 export interface Ship {
+  id?: number
   name: string
   size: number
   placed: boolean
@@ -11,13 +12,23 @@ export interface Ship {
   sunk: boolean
 };
 
+export const GameStatus = {
+  WAITING_FOR_PLAYER: "WAITING_FOR_PLAYER",
+  SHIPS_SETUP: "SETTING_UP_SHIPS",
+  IN_PROGRESS: "PLAYING",
+  FINISHED: "FINISHED",
+};
+
+export type GameStatus = typeof GameStatus[keyof typeof GameStatus]
+
+
 export interface GameState {
   playerBoard: CellState[][]
   enemyBoard: CellState[][]
   playerShips: CellState[][]
   enemyShips: CellState[][]
   currentPlayer: "player" | "enemy"
-  gamePhase: "placement" | "battle" | "gameOver"
+  gameStatus: GameStatus
   winner: "player" | "enemy" | null
   playerStats: { hits: number; misses: number; shipsRemaining: number }
   enemyStats: { hits: number; misses: number; shipsRemaining: number }
@@ -32,11 +43,11 @@ export interface PlacementState {
 export const BOARD_SIZE = 10
 
 export const INITIAL_SHIPS: Ship[] = [
-  { name: "Carrier", size: 5, placed: false, positions: [], hits: 0, sunk: false },
-  { name: "Battleship", size: 4, placed: false, positions: [], hits: 0, sunk: false },
-  { name: "Submarine", size: 3, placed: false, positions: [], hits: 0, sunk: false },
-  { name: "Submarine", size: 3, placed: false, positions: [], hits: 0, sunk: false },
-  { name: "Destroyer", size: 2, placed: false, positions: [], hits: 0, sunk: false },
+  { id: 1, name: "Carrier", size: 5, placed: false, positions: [], hits: 0, sunk: false },
+  { id: 2, name: "Battleship", size: 4, placed: false, positions: [], hits: 0, sunk: false },
+  { id: 3, name: "Submarine", size: 3, placed: false, positions: [], hits: 0, sunk: false },
+  { id: 4, name: "Submarine", size: 3, placed: false, positions: [], hits: 0, sunk: false },
+  { id: 5, name: "Destroyer", size: 2, placed: false, positions: [], hits: 0, sunk: false },
 ];
 
 export const createEmptyBoard = (): CellState[][] => {
