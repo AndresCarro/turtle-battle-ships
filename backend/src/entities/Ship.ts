@@ -56,10 +56,10 @@ export class Ship {
   @Column()
   length!: number;
 
+  @Column()
+  gameId!: number;
+
   @ManyToOne(() => Game, (game) => game.ships, { onDelete: "CASCADE" })
   @JoinColumn({ name: "gameId" })
   game!: Game;
-
-  @Column()
-  gameId!: number;
 }

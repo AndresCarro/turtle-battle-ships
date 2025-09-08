@@ -94,8 +94,9 @@ export const postFleetService = async (
     }
   }
 
+  console.log(game);
   // Crear instancias de Ship correctamente tipadas
-  const ships: Ship[] = shipsInput.map((s) =>
+  const ships = shipsInput.map((s) =>
     shipRepository.create({
       player,
       type: s.type,
@@ -104,7 +105,7 @@ export const postFleetService = async (
       orientation: s.orientation,
       length: getShipTypeSize(s.type),
       game: game,
-      gameId: game.id,
+      gameId: id,
     })
   );
 
@@ -116,7 +117,7 @@ export const postFleetService = async (
   const players = Array.from(new Set(allShips.map((s) => s.player)));
   if (players.length === 2) {
     game.status = GameStatus.IN_PROGRESS;
-    await gameRepository.save(game);
+    await gameRepository.update(id, { status: GameStatus.IN_PROGRESS });
   }
 
   return savedShips;
