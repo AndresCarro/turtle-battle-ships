@@ -71,26 +71,26 @@ export const postFleetService = async (
     switch (type) {
       case ShipType.CARRIER:
         if (typeCount[type] !== 1) {
-          throw new Error(`Player must place exactly 1 ships of type ${type}`);    
+          throw new Error(`Player must place exactly 1 ships of type ${type}`);
         }
         break;
       case ShipType.BATTLESHIP:
         if (typeCount[type] !== 1) {
-          throw new Error(`Player must place exactly 1 ships of type ${type}`);    
+          throw new Error(`Player must place exactly 1 ships of type ${type}`);
         }
         break;
       case ShipType.SUBMARINE:
         if (typeCount[type] !== 2) {
-          throw new Error(`Player must place exactly 2 ships of type ${type}`);    
+          throw new Error(`Player must place exactly 2 ships of type ${type}`);
         }
         break;
       case ShipType.DESTROYER:
         if (typeCount[type] !== 1) {
-          throw new Error(`Player must place exactly 1 ships of type ${type}`);    
+          throw new Error(`Player must place exactly 1 ships of type ${type}`);
         }
         break;
       default:
-        throw new Error(`Incorrect ship type ${type}`);  
+        throw new Error(`Incorrect ship type ${type}`);
     }
   }
 
@@ -103,7 +103,8 @@ export const postFleetService = async (
       y: s.y,
       orientation: s.orientation,
       length: getShipTypeSize(s.type),
-      game,
+      game: game,
+      gameId: game.id,
     })
   );
 
@@ -144,9 +145,10 @@ export const postShotService = async (
     throw Error(`User ${username} cannot make a shot. It is not his turn`);
   }
 
-  const opponentUsername = game.player1 === username ? game.player2 : game.player1;
+  const opponentUsername =
+    game.player1 === username ? game.player2 : game.player1;
 
-  const opponentShips = await getFleetsService(game.id, opponentUsername);  
+  const opponentShips = await getFleetsService(game.id, opponentUsername);
   console.log("OPPONENTS SHIP ", opponentShips);
 
   let hit = false;
