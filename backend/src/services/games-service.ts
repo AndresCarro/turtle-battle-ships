@@ -94,8 +94,6 @@ export const postFleetService = async (
     }
   }
 
-  console.log(game);
-  // Crear instancias de Ship correctamente tipadas
   const ships = shipsInput.map((s) =>
     shipRepository.create({
       player,
@@ -109,10 +107,8 @@ export const postFleetService = async (
     })
   );
 
-  // Guardarlas en la base de datos, TypeORM devuelve Ship[]
   const savedShips = await shipRepository.save(ships);
 
-  // Chequeamos si terminaron de setupear las ships
   const allShips = await shipRepository.find({ where: { game: { id } } });
   const players = Array.from(new Set(allShips.map((s) => s.player)));
   if (players.length === 2) {
@@ -150,7 +146,6 @@ export const postShotService = async (
     game.player1 === username ? game.player2 : game.player1;
 
   const opponentShips = await getFleetsService(game.id, opponentUsername);
-  console.log("OPPONENTS SHIP ", opponentShips);
 
   let hit = false;
 
@@ -172,19 +167,16 @@ export const postShotService = async (
   }
 
   const shot = await shotRepository.save(
-    shotRepository.create({ player: username, x, y, hit, game })
+    shotRepository.create({ player: username, x, y, hit, game, gameId: game.id })
   );
 
   if (checkIfGameFinished(game, username)) {
-    game.status = GameStatus.FINISHED;
-    game.winner = username;
-    await gameRepository.save(game);
+    await gameRepository.update(game.id, {status: GameStatus.FINISHED, winner: username});
     saveGameReplay(game.id);
-    return;
-  }
-
-  game.currentTurn = game.player1 === username ? game.player2 : game.player1;
-  await gameRepository.save(game);
+  } else {
+    const newCurrentTurn = game.player1 === username ? game.player2 : game.player1;
+    await gameRepository.update(game.id, { currentTurn: newCurrentTurn});
+  }  
 
   return shot;
 };
