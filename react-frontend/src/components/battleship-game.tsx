@@ -9,6 +9,7 @@ import type { Game, Shot } from "@/models/models"
 import { canPlaceShip, checkShipSunk, convertBackendShipToFrontend, createEmptyBoard, GameStatus, INITIAL_SHIPS, markShipAsSunk, placeShip, type GameState, type PlacementState, type Ship } from "./battleship-game-utils"
 import { GameOverSection } from "./game-over-section"
 import { ShipPlacementSection } from "./ship-placement-section"
+import { DuringGameBattleStats } from "./during-game-battle-stats"
 
 export function BattleshipGame({gameRoom, currentUsername}:{gameRoom: Game, currentUsername: string}) {
   const { toast } = useToast()
@@ -52,7 +53,7 @@ export function BattleshipGame({gameRoom, currentUsername}:{gameRoom: Game, curr
     gameStatusPollingInterval.current = setInterval(async () => {
       try {
         const updatedGameRoom = await GameRoomService.getGameRoom(gameRoom.id.toString())
-        console.log("--->", updatedGameRoom);
+
         if (updatedGameRoom.status === GameStatus.FINISHED) {
           if (shotPollingInterval.current) {
             clearInterval(shotPollingInterval.current)
@@ -249,7 +250,6 @@ export function BattleshipGame({gameRoom, currentUsername}:{gameRoom: Game, curr
   }
   
   useEffect(() => {
-    // Start game status polling when component mounts
     startGameStatusPolling()
     
     return () => {
@@ -389,60 +389,7 @@ export function BattleshipGame({gameRoom, currentUsername}:{gameRoom: Game, curr
       )}
 
       {gameState.gameStatus === GameStatus.IN_PROGRESS && (
-        <Card className="p-4 w-full max-w-2xl">
-          <div className="text-center mb-4">
-            <h3 className="text-lg font-semibold text-white">
-              {gameState.currentPlayer === "player" ? "Your Turn" : `${opponentUsername || "Opponent"}'s Turn`}
-            </h3>
-            {gameState.currentPlayer === "enemy" && (
-              <p className="text-sm text-white">
-                Waiting for {opponentUsername || "opponent"} to make their move...
-              </p>
-            )}
-            {isSubmittingShot && (
-              <p className="text-sm text-white">
-                Submitting shot...
-              </p>
-            )}
-          </div>
-
-          <div className="grid grid-cols-2 gap-8 text-sm text-white">
-            <div>
-              <h4 className="font-medium text-center mb-2 text-white">{currentUsername}'s Stats</h4>
-              <p className="text-white">Hits: <span className="text-white">{gameState.playerStats.hits}</span></p>
-              <p className="text-white">Misses: <span className="text-white">{gameState.playerStats.misses}</span></p>
-              <p className="text-white">{opponentUsername || "Opponent"} Ships: <span className="text-white">{gameState.playerStats.shipsRemaining}</span></p>
-              <p className="text-white">
-                Accuracy:{" "}
-                <span className="text-white">
-                  {gameState.playerStats.hits + gameState.playerStats.misses > 0
-                    ? Math.round(
-                        (gameState.playerStats.hits / (gameState.playerStats.hits + gameState.playerStats.misses)) * 100,
-                      )
-                    : 0}
-                  %
-                </span>
-              </p>
-            </div>
-            <div>
-              <h4 className="font-medium text-center mb-2 text-white">{opponentUsername || "Opponent"}'s Stats</h4>
-              <p className="text-white">Hits: <span className="text-white">{gameState.enemyStats.hits}</span></p>
-              <p className="text-white">Misses: <span className="text-white">{gameState.enemyStats.misses}</span></p>
-              <p className="text-white">Your Ships: <span className="text-white">{gameState.enemyStats.shipsRemaining}</span></p>
-              <p className="text-white">
-                Accuracy:{" "}
-                <span className="text-white">
-                  {gameState.enemyStats.hits + gameState.enemyStats.misses > 0
-                    ? Math.round(
-                        (gameState.enemyStats.hits / (gameState.enemyStats.hits + gameState.enemyStats.misses)) * 100,
-                      )
-                    : 0}
-                  %
-                </span>
-              </p>
-            </div>
-          </div>
-        </Card>
+        <DuringGameBattleStats currentUsername={currentUsername} gameState={gameState} isSubmittingShot={isSubmittingShot} opponentUsername={opponentUsername}/>
       )}
 
       <div className="flex flex-col lg:flex-row gap-8 items-start justify-center">
