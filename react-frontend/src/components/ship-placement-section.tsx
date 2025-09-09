@@ -6,6 +6,7 @@ import { Card } from "./ui/card"
 import type { Game, ShipInput } from "@/models/models"
 import { GameService } from "@/services/games-service"
 import { toast } from "@/hooks/use-toast"
+import { cn } from "@/lib/utils"
 
 
 export const ShipPlacementSection = ({placementState, setPlacementState, gameRoom, currentUsername, opponentUsername, isWaitingForOpponent, setIsWaitingForOpponent, initializeBattlePhase}:{placementState: PlacementState; setPlacementState: (placementState: PlacementState) => void; gameRoom: Game; currentUsername: string; opponentUsername: string | undefined; isWaitingForOpponent: boolean; setIsWaitingForOpponent: (isWaiting: boolean) => void; initializeBattlePhase: () => void;}) => {
@@ -97,11 +98,15 @@ export const ShipPlacementSection = ({placementState, setPlacementState, gameRoo
                     })
                 }
                 disabled={ship.placed}
-                className="flex items-center gap-2 text-white"
+                className={cn(
+                  "flex items-center gap-2 text-white",
+                  placementState.selectedShip === index && "bg-cyan-600 hover:bg-cyan-800",
+                  placementState.selectedShip !== index && "border border-cyan-300 hover:bg-cyan-800 text-cyan-300"
+                )}
               >
                 {ship.name} ({ship.size})
                 {ship.placed && (
-                  <Badge variant="secondary" className="ml-1">
+                  <Badge className="ml-1 bg-cyan-600 text-white">
                     ✓
                   </Badge>
                 )}
@@ -114,15 +119,22 @@ export const ShipPlacementSection = ({placementState, setPlacementState, gameRoo
             <Button
               variant={placementState.orientation === "horizontal" ? "default" : "outline"}
               size="sm"
-              className="text-white"
+              className={cn(
+                "text-white",
+                placementState.orientation === "horizontal" && "bg-cyan-600 hover:bg-cyan-800",
+                placementState.orientation !== "horizontal" && "border border-cyan-300 hover:bg-cyan-800 text-cyan-300"
+              )}
               onClick={() => setPlacementState({ ...placementState, orientation: "horizontal" })}
             >
               Horizontal
             </Button>
             <Button
-              variant={placementState.orientation === "vertical" ? "default" : "outline"}
               size="sm"
-              className="text-white"
+              className={cn(
+                "text-white",
+                placementState.orientation === "vertical" && "bg-cyan-600 hover:bg-cyan-800",
+                placementState.orientation !== "vertical" && "border border-cyan-300 hover:bg-cyan-800 text-cyan-300"
+              )}
               onClick={() => setPlacementState({ ...placementState, orientation: "vertical" })}
             >
               Vertical
