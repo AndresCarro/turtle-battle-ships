@@ -160,11 +160,11 @@ export function BattleshipGame({gameRoom, currentUsername}:{gameRoom: Game, curr
   }
   
   const processShotsUpdate = async (shots: Shot[]) => {
-    const playerShots = shots.filter(shot => shot.player === currentUsername)
-    const opponentShots = shots.filter(shot => shot.player === opponentUsername)
+    const playerShots = shots.filter(shot => shot.player === currentUsername);
+    const opponentShots = shots.filter(shot => shot.player === opponentUsername);
     
-    const newPlayerBoard = createEmptyBoard()
-    let playerHits = 0
+    const newPlayerBoard = createEmptyBoard();
+    let playerHits = 0;
     
     opponentShots.forEach(shot => {
       const row = shot.y // Backend y -> Frontend row
@@ -176,7 +176,7 @@ export function BattleshipGame({gameRoom, currentUsername}:{gameRoom: Game, curr
       } else {
         newPlayerBoard[row][col] = "miss"
       }
-    })
+    });
     
     const newEnemyBoard = createEmptyBoard()
     let enemyHits = 0

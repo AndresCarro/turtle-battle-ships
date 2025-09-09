@@ -1,4 +1,6 @@
+import router from "@/router";
 import type { GameState } from "./battleship-game-utils"
+import { Button } from "./ui/button";
 import { Card } from "./ui/card"
 
 
@@ -46,6 +48,20 @@ export const GameOverSection = ({gameState, username, opponentsUsername}:{gameSt
                 </span>
               </p>
             </div>
+          </div>
+          <div>
+            <Button 
+              onClick={() =>
+                router.navigate({ 
+                  to: '/game-rooms',
+                  search: { username: username }
+                })
+              } 
+              className="bg-green-600 hover:bg-green-700 text-white"
+              variant="default"
+            >
+              Back to game rooms
+            </Button>
           </div>
         </Card>
     )
