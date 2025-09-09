@@ -18,11 +18,14 @@ AppDataSource.initialize()
   .then(async () => {
     console.log("Data Source has been initialized!");
     app.use("/", router);
-    const SERVER_PORT = process.env.SERVER_PORT || 3000;
+    const SERVER_PORT = +(process.env.SERVER_PORT ?? 3000);
     createBucketIfNeeded();
-    app.listen(SERVER_PORT, () =>
-      console.log(`Server running on http://localhost:${SERVER_PORT}`)
-    );
+    app.listen(SERVER_PORT, "0.0.0.0", (err) => {
+      if (err) {
+        console.error(err);
+      }
+      console.log(`Server running on http://0.0.0.0:${SERVER_PORT}`)
+    });
   })
   .catch((err) =>
     console.error("Error during Data Source initialization:", err)
