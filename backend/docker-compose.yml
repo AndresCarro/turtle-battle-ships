@@ -52,9 +52,9 @@ services:
       - bucket
     entrypoint: ["/bin/sh", "-c"]
     command: |
-      mc alias set myminio http://bucket:9000 ${BUCKET_ACCESS_KEY} ${BUCKET_SECRET_ACCESS_KEY} && \
+      "mc alias set myminio http://bucket:9000 ${BUCKET_ACCESS_KEY} ${BUCKET_SECRET_ACCESS_KEY} && \
       mc mb --ignore-existing myminio/${BUCKET_NAME} && \
-      mc policy set public myminio/${BUCKET_NAME}
+      mc policy set public myminio/${BUCKET_NAME}"
     restart: on-failure
 
 volumes:

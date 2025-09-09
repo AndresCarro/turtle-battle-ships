@@ -7,10 +7,10 @@ import {
 
 export const s3 = new S3Client({
   region: "us-east-1",
-  endpoint: process.env.S3_ENDPOINT || "http://localhost:9000",
+  endpoint: process.env.BUCKET_ENDPOINT || "http://localhost:9000",
   credentials: {
-    accessKeyId: process.env.S3_ACCESS_KEY || "minioadmin",
-    secretAccessKey: process.env.S3_SECRET_KEY || "minioadmin",
+    accessKeyId: process.env.BUCKET_ACCESS_KEY || "minioadmin",
+    secretAccessKey: process.env.BUCKET_SECRET_ACCESS_KEY || "minioadmin",
   },
   forcePathStyle: true,
 });
