@@ -4,6 +4,7 @@ import {
   getFleets,
   getGame,
   getShots,
+  index,
   joinGame,
   listGames,
   postFleet,
@@ -13,6 +14,7 @@ import { createUser } from "../controllers/user-controller";
 
 const router = Router();
 
+router.get("/", index);
 router.post("/games/", createGame);
 router.put("/games/:id", joinGame);
 router.get("/games/", listGames);

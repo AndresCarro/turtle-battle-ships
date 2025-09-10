@@ -10,6 +10,10 @@ import {
   postShotService,
 } from "../services/games-service";
 
+export const index = (req: Request, res: Response) => {
+  res.status(200).send("pong");
+};
+
 export const createGame = async (req: Request, res: Response) => {
   try {
     const { gameRoomName, username } = req.body;
