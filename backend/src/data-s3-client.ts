@@ -11,6 +11,7 @@ export const s3 = new S3Client({
   credentials: {
     accessKeyId: process.env.BUCKET_ACCESS_KEY || "minioadmin",
     secretAccessKey: process.env.BUCKET_SECRET_ACCESS_KEY || "minioadmin",
+    sessionToken: process.env.BUCKET_SESSION_TOKEN || "error",
   },
   forcePathStyle: true,
 });
