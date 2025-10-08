@@ -1,4 +1,4 @@
-import { Column, Entity, OneToMany, PrimaryGeneratedColumn } from "typeorm";
+import { Column, Entity, OneToMany, PrimaryGeneratedColumn, CreateDateColumn } from "typeorm";
 import { Ship } from "./Ship";
 import { Shot } from "./Shot";
 
@@ -28,6 +28,12 @@ export class Game {
 
   @Column({ nullable: true })
   winner!: string;
+
+  @CreateDateColumn({
+    type: 'timestamp',
+    default: () => 'CURRENT_TIMESTAMP(6)'
+  })
+  creationTimestamp!: Date;
 
   @Column({
     type: "enum",

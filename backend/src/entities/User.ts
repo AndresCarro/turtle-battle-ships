@@ -8,4 +8,10 @@ export class User {
 
     @Column()
     name!: string;
+
+    @Column({ default: 0 })
+    totalGames!: number;
+
+    @Column({ default: 0 })
+    totalWins!: number;
 }

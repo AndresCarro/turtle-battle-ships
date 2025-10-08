@@ -1,8 +1,9 @@
 export const GRID_SIZE = 10;
 
 export enum GameRoomStatuses {
-    WAITING = "WAITING",
-    IN_GAME = "IN_GAME",
+    WAITING_FOR_PLAYER = "WAITING_FOR_PLAYER",
+    SHIPS_SETUP = "SETTING_UP_SHIPS",
+    IN_PROGRESS = "PLAYING",
     FINISHED = "FINISHED"
 }
 
