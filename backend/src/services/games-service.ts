@@ -1,12 +1,26 @@
-import { AppDataSource } from "../data-source";
-import { Game, GameStatus } from "../entities/Game";
-import { getShipTypeSize, Orientation, Ship, ShipType } from "../entities/Ship";
-import { Shot } from "../entities/Shot";
-import { saveGameReplay } from "./game-replay-services";
+import { Server } from 'socket.io';
+import { AppDataSource } from '../data-source';
+import { Game, GameStatus } from '../entities/Game';
+import { getShipTypeSize, Orientation, Ship, ShipType } from '../entities/Ship';
+import { Shot } from '../entities/Shot';
+import { saveGameReplay } from './game-replay-services';
 
 const gameRepository = AppDataSource.getRepository(Game);
 const shipRepository = AppDataSource.getRepository(Ship);
 const shotRepository = AppDataSource.getRepository(Shot);
+
+let socketIOInstance: Server | null = null;
+
+export const setSocketIOInstance = (io: Server) => {
+  socketIOInstance = io;
+};
+
+const emitToGameRoom = (gameId: number, event: string, data: any) => {
+  if (socketIOInstance) {
+    const roomName = `game-${gameId}`;
+    socketIOInstance.to(roomName).emit(event, data);
+  }
+};
 
 export const createGameService = async (
   username: string,
@@ -18,13 +32,18 @@ export const createGameService = async (
 
 export const joinGameService = async (id: number, username: string) => {
   const game = await gameRepository.findOne({ where: { id } });
-  if (!game) throw new Error("Game not found");
-  if (game.player2) throw new Error("Game already has two players");
+  if (!game) throw new Error('Game not found');
+  if (game.player2) throw new Error('Game already has two players');
 
   game.player2 = username;
   game.status = GameStatus.SHIPS_SETUP;
   game.currentTurn = game.player1;
-  return gameRepository.save(game);
+  const savedGame = await gameRepository.save(game);
+
+  // Emit game state update to all players in the game room
+  emitToGameRoom(id, 'game-state-update', savedGame);
+
+  return savedGame;
 };
 
 export const listGamesService = async () => {
@@ -34,14 +53,14 @@ export const listGamesService = async () => {
 export const getGameService = async (id: number) => {
   const game = await gameRepository.findOne({
     where: { id },
-    relations: ["ships", "shots"],
+    relations: ['ships', 'shots'],
   });
-  if (!game) throw new Error("Game not found");
+  if (!game) throw new Error('Game not found');
   return game;
 };
 
 export const postFleetService = async (
-  id: number,
+  gameId: number,
   player: string,
   shipsInput: {
     type: ShipType;
@@ -51,13 +70,13 @@ export const postFleetService = async (
   }[]
 ): Promise<Ship[]> => {
   const game = await gameRepository.findOne({
-    where: { id },
-    relations: ["ships"],
+    where: { id: gameId },
+    relations: ['ships'],
   });
-  if (!game) throw new Error("Game not found");
+  if (!game) throw new Error('Game not found');
 
   const existingShips = game.ships.filter((s) => s.player === player);
-  if (existingShips.length > 0) throw new Error("Player already placed ships");
+  if (existingShips.length > 0) throw new Error('Player already placed ships');
 
   const typeCount: Record<ShipType, number> = {
     [ShipType.CARRIER]: 0,
@@ -103,17 +122,23 @@ export const postFleetService = async (
       orientation: s.orientation,
       length: getShipTypeSize(s.type),
       game: game,
-      gameId: id,
+      gameId: gameId,
     })
   );
 
   const savedShips = await shipRepository.save(ships);
 
-  const allShips = await shipRepository.find({ where: { game: { id } } });
+  const allShips = await shipRepository.find({
+    where: { game: { id: gameId } },
+  });
   const players = Array.from(new Set(allShips.map((s) => s.player)));
   if (players.length === 2) {
     game.status = GameStatus.IN_PROGRESS;
-    await gameRepository.update(id, { status: GameStatus.IN_PROGRESS });
+    await gameRepository.update(gameId, { status: GameStatus.IN_PROGRESS });
+
+    const updatedGame = await getGameService(gameId);
+    updatedGame.ships = ships.filter((ship) => ship.player === player);
+    emitToGameRoom(gameId, 'game-state-update', updatedGame);
   }
 
   return savedShips;
@@ -133,11 +158,11 @@ export const postShotService = async (
 ) => {
   const game = await gameRepository.findOne({
     where: { id },
-    relations: ["ships", "shots"],
+    relations: ['ships', 'shots'],
   });
-  if (!game) throw new Error("Game not found");
+  if (!game) throw new Error('Game not found');
   if (game.status != GameStatus.IN_PROGRESS)
-    throw Error("Game is not in a valid state, it should be in progress.");
+    throw Error('Game is not in a valid state, it should be in progress.');
   if (game.currentTurn !== username) {
     throw Error(`User ${username} cannot make a shot. It is not his turn`);
   }
@@ -167,16 +192,45 @@ export const postShotService = async (
   }
 
   const shot = await shotRepository.save(
-    shotRepository.create({ player: username, x, y, hit, game, gameId: game.id })
+    shotRepository.create({
+      player: username,
+      x,
+      y,
+      hit,
+      game,
+      gameId: game.id,
+    })
   );
 
+  emitToGameRoom(id, 'shot-fired', {
+    player: username,
+    x,
+    y,
+    hit,
+    shot,
+  });
+
   if (checkIfGameFinished(game, username)) {
-    await gameRepository.update(game.id, {status: GameStatus.FINISHED, winner: username});
+    await gameRepository.update(game.id, {
+      status: GameStatus.FINISHED,
+      winner: username,
+    });
+    const updatedGame = await getGameService(id);
+    emitToGameRoom(id, 'game-finished', {
+      winner: username,
+      game: updatedGame,
+    });
     saveGameReplay(game.id);
-  } else {
-    const newCurrentTurn = game.player1 === username ? game.player2 : game.player1;
-    await gameRepository.update(game.id, { currentTurn: newCurrentTurn});
-  }  
+    return shot;
+  }
+
+  const newCurrentTurn =
+    game.player1 === username ? game.player2 : game.player1;
+  await gameRepository.update(game.id, { currentTurn: newCurrentTurn });
+  emitToGameRoom(id, 'turn-changed', {
+    currentTurn: newCurrentTurn,
+    previousTurn: username,
+  });
 
   return shot;
 };

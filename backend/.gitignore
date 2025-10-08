@@ -34,3 +34,4 @@ battleship-data/
 # Optional: temp fi
 
 .env
+.vscode
