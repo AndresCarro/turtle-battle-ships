@@ -4,8 +4,9 @@ import { cn } from '@/utils/ui';
 import { MessageCircleMore, MessageCircleOff } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Chat } from '../chat';
-import type { GameRoom, Message } from '@/types';
+import type { GameRoom } from '@/types';
 import { useMainStore } from '@/store/main-store';
+import { useGameWebSocket } from '@/hooks/use-game-websocket';
 
 export function BaseComponent({
   room,
@@ -15,7 +16,7 @@ export function BaseComponent({
   children: React.ReactNode;
 }) {
   const [showChat, setShowChat] = useState(false);
-
+  const { messages, sendMessage } = useGameWebSocket();
   const playerUsername = useMainStore((state) => state.player!.name);
   const [player, opponent] = useMemo(() => {
     if (room.player1?.name === playerUsername) {
@@ -24,51 +25,8 @@ export function BaseComponent({
     return [room.player2, room.player1];
   }, [room]);
 
-  // TODO
-  const messages: Message[] = [
-    { id: '1', sender: 'alejo', content: 'Hello!', timestamp: new Date() },
-    { id: '2', sender: 'andy', content: 'Hi there!', timestamp: new Date() },
-    {
-      id: '3',
-      sender: 'alejo',
-      content: 'How are you?',
-      timestamp: new Date(),
-    },
-    {
-      id: '4',
-      sender: 'andy',
-      content: "I'm good, thanks! And you?",
-      timestamp: new Date(),
-    },
-    {
-      id: '5',
-      sender: 'alejo',
-      content: 'Doing well, just excited to play!',
-      timestamp: new Date(),
-    },
-    {
-      id: '6',
-      sender: 'andy',
-      content: "Same here! Let's have a great game.",
-      timestamp: new Date(),
-    },
-    {
-      id: '7',
-      sender: 'alejo',
-      content: 'Absolutely! May the best turtle win! 🐢',
-      timestamp: new Date(),
-    },
-    {
-      id: '8',
-      sender: 'andy',
-      content: 'Haha, may the best turtle win! 🐢',
-      timestamp: new Date(),
-    },
-  ];
-
-  function handleSendMessage(message: string) {
-    // TODO
-    console.log('Send message:', message);
+  async function handleSendMessage(message: string) {
+    sendMessage(message);
   }
 
   return (
