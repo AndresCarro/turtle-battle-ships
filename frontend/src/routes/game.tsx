@@ -2,7 +2,6 @@ import { GameOver } from '@/components/game/phases/game-over';
 import { PlacingShips } from '@/components/game/phases/placing-ships';
 import { Playing } from '@/components/game/phases/playing';
 import { WaitingOpponentPlacingShips } from '@/components/game/phases/waiting-opponent-placing-ships';
-import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { GRID_SIZE } from '@/constants';
 import { useGameWebSocket } from '@/hooks/use-game-websocket';
@@ -47,19 +46,7 @@ function RouteComponent() {
       .fill(null)
       .map(() => Array(GRID_SIZE).fill(''))
   );
-  const {
-    isConnected,
-    isConnecting,
-    error,
-    gameState,
-    messages,
-    connect,
-    disconnect,
-    joinGame,
-    leaveGame,
-    requestGameState,
-    sendMessage,
-  } = useGameWebSocket();
+  const { isConnected, isConnecting, gameState, joinGame } = useGameWebSocket();
 
   if (player === null) {
     throw redirect({ to: '/' });
@@ -78,10 +65,6 @@ function RouteComponent() {
 
     joinGameRoom();
   }, [isConnected, gameRoom.id, player.name, joinGame]);
-
-  const getConnectionStatusBadge = () => {
-    if (isConnecting) return <Badge variant="secondary">Connecting...</Badge>;
-  };
 
   const phase = gameState;
 

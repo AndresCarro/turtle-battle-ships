@@ -1,3 +1,4 @@
+import type { Message } from '@/types';
 import { io, Socket } from 'socket.io-client';
 
 export interface GameWebSocketEvents {
@@ -12,12 +13,18 @@ export interface GameWebSocketEvents {
   'game-state-update': (data: any) => void;
   'player-connected': (data: { username: string }) => void;
   'player-disconnected': (data: { username: string }) => void;
-  'shot-fired': (data: { player: string; x: number; y: number; hit: boolean; shot: any }) => void;
+  'shot-fired': (data: {
+    player: string;
+    x: number;
+    y: number;
+    hit: boolean;
+    shot: any;
+  }) => void;
   'turn-changed': (data: { currentTurn: string; previousTurn: string }) => void;
   'ships-placed': (data: { player: string; ships: any[] }) => void;
   'game-finished': (data: { winner: string; game: any }) => void;
-  'message-received': (data: { username: string; message: string; timestamp: string }) => void;
-  'error': (data: { message: string }) => void;
+  'message-received': (data: Message) => void;
+  error: (data: { message: string }) => void;
 }
 
 export class GameWebSocketService {
@@ -88,7 +95,7 @@ export class GameWebSocketService {
    */
   async joinGame(gameId: number, username: string): Promise<void> {
     await this.connect();
-    
+
     if (!this.socket) {
       throw new Error('Not connected to server');
     }
@@ -122,7 +129,7 @@ export class GameWebSocketService {
 
       this.socket.once('joined-game', onJoined);
       this.socket.once('error', onError);
-      
+
       this.socket.emit('join-game', { gameId, username });
     });
   }
@@ -159,7 +166,10 @@ export class GameWebSocketService {
   /**
    * Add event listener
    */
-  on<T extends keyof GameWebSocketEvents>(event: T, handler: GameWebSocketEvents[T]): void {
+  on<T extends keyof GameWebSocketEvents>(
+    event: T,
+    handler: GameWebSocketEvents[T]
+  ): void {
     if (!this.eventHandlers.has(event)) {
       this.eventHandlers.set(event, []);
     }
@@ -169,7 +179,10 @@ export class GameWebSocketService {
   /**
    * Remove event listener
    */
-  off<T extends keyof GameWebSocketEvents>(event: T, handler: GameWebSocketEvents[T]): void {
+  off<T extends keyof GameWebSocketEvents>(
+    event: T,
+    handler: GameWebSocketEvents[T]
+  ): void {
     const handlers = this.eventHandlers.get(event);
     if (handlers) {
       const index = handlers.indexOf(handler as Function);
@@ -227,14 +240,14 @@ export class GameWebSocketService {
       'ships-placed',
       'game-finished',
       'message-received',
-      'error'
+      'error',
     ];
 
-    events.forEach(event => {
+    events.forEach((event) => {
       this.socket!.on(event, (...args) => {
         const handlers = this.eventHandlers.get(event);
         if (handlers) {
-          handlers.forEach(handler => {
+          handlers.forEach((handler) => {
             try {
               handler(...args);
             } catch (error) {

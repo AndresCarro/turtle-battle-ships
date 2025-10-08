@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { gameWebSocketService } from '@/services/websocket-service';
 import type { GameWebSocketEvents } from '@/services/websocket-service';
+import type { Message } from '@/types';
 
 export interface UseGameWebSocketOptions {
   gameId?: number;
@@ -13,8 +14,8 @@ export interface UseGameWebSocketReturn {
   isConnecting: boolean;
   error: string | null;
   gameState: any | null;
-  messages: Array<{ username: string; message: string; timestamp: string }>;
-  
+  messages: Array<Message>;
+
   // Actions
   connect: () => Promise<void>;
   disconnect: () => void;
@@ -22,28 +23,36 @@ export interface UseGameWebSocketReturn {
   leaveGame: () => void;
   requestGameState: () => void;
   sendMessage: (message: string) => void;
-  
+
   // Event listeners
-  on: <T extends keyof GameWebSocketEvents>(event: T, handler: GameWebSocketEvents[T]) => void;
-  off: <T extends keyof GameWebSocketEvents>(event: T, handler: GameWebSocketEvents[T]) => void;
+  on: <T extends keyof GameWebSocketEvents>(
+    event: T,
+    handler: GameWebSocketEvents[T]
+  ) => void;
+  off: <T extends keyof GameWebSocketEvents>(
+    event: T,
+    handler: GameWebSocketEvents[T]
+  ) => void;
 }
 
-export const useGameWebSocket = (options: UseGameWebSocketOptions = {}): UseGameWebSocketReturn => {
+export const useGameWebSocket = (
+  options: UseGameWebSocketOptions = {}
+): UseGameWebSocketReturn => {
   const { gameId, username, autoConnect = false } = options;
-  
+
   const [isConnected, setIsConnected] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [gameState, setGameState] = useState<any | null>(null);
-  const [messages, setMessages] = useState<Array<{ username: string; message: string; timestamp: string }>>([]);
+  const [messages, setMessages] = useState<Message[]>([]);
 
   // Connection functions
   const connect = useCallback(async () => {
     if (isConnecting || isConnected) return;
-    
+
     setIsConnecting(true);
     setError(null);
-    
+
     try {
       await gameWebSocketService.connect();
       setIsConnected(true);
@@ -86,24 +95,31 @@ export const useGameWebSocket = (options: UseGameWebSocketOptions = {}): UseGame
   }, []);
 
   // Event listener management
-  const on = useCallback(<T extends keyof GameWebSocketEvents>(
-    event: T, 
-    handler: GameWebSocketEvents[T]
-  ) => {
-    gameWebSocketService.on(event, handler);
-  }, []);
+  const on = useCallback(
+    <T extends keyof GameWebSocketEvents>(
+      event: T,
+      handler: GameWebSocketEvents[T]
+    ) => {
+      gameWebSocketService.on(event, handler);
+    },
+    []
+  );
 
-  const off = useCallback(<T extends keyof GameWebSocketEvents>(
-    event: T, 
-    handler: GameWebSocketEvents[T]
-  ) => {
-    gameWebSocketService.off(event, handler);
-  }, []);
+  const off = useCallback(
+    <T extends keyof GameWebSocketEvents>(
+      event: T,
+      handler: GameWebSocketEvents[T]
+    ) => {
+      gameWebSocketService.off(event, handler);
+    },
+    []
+  );
 
   // Setup event handlers
   useEffect(() => {
     const handleGameStateUpdate = (data: any) => {
-      setGameState(data);console.log('🔄 Game state updated:', data);
+      setGameState(data);
+      console.log('🔄 Game state updated:', data);
     };
 
     const handlePlayerConnected = (data: { username: string }) => {
@@ -114,8 +130,8 @@ export const useGameWebSocket = (options: UseGameWebSocketOptions = {}): UseGame
       console.log('👋 Player disconnected:', data.username);
     };
 
-    const handleMessageReceived = (data: { username: string; message: string; timestamp: string }) => {
-      setMessages(prev => [...prev, data]);
+    const handleMessageReceived = (data: Message) => {
+      setMessages((prev) => [...prev, data]);
     };
 
     const handleError = (data: { message: string }) => {
@@ -123,11 +139,20 @@ export const useGameWebSocket = (options: UseGameWebSocketOptions = {}): UseGame
       setError(data.message);
     };
 
-    const handleShotFired = (data: { player: string; x: number; y: number; hit: boolean; shot: any }) => {
+    const handleShotFired = (data: {
+      player: string;
+      x: number;
+      y: number;
+      hit: boolean;
+      shot: any;
+    }) => {
       console.log('💥 Shot fired:', data);
     };
 
-    const handleTurnChanged = (data: { currentTurn: string; previousTurn: string }) => {
+    const handleTurnChanged = (data: {
+      currentTurn: string;
+      previousTurn: string;
+    }) => {
       console.log('🔄 Turn changed:', data);
     };
 
@@ -176,7 +201,7 @@ export const useGameWebSocket = (options: UseGameWebSocketOptions = {}): UseGame
       gameWebSocketService.off('ships-placed', handleShipsPlaced);
       gameWebSocketService.off('game-finished', handleGameFinished);
       gameWebSocketService.off('joined-game', handleJoinedGame);
-      
+
       clearInterval(interval);
     };
   }, []);
@@ -190,7 +215,12 @@ export const useGameWebSocket = (options: UseGameWebSocketOptions = {}): UseGame
 
   // Auto-join game if gameId and username are provided
   useEffect(() => {
-    if (isConnected && gameId && username && gameWebSocketService.currentGameId !== gameId) {
+    if (
+      isConnected &&
+      gameId &&
+      username &&
+      gameWebSocketService.currentGameId !== gameId
+    ) {
       joinGame(gameId, username).catch(console.error);
     }
   }, [isConnected, gameId, username, joinGame]);
