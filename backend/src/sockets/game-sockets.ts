@@ -1,5 +1,6 @@
 import { Server, Socket } from 'socket.io';
 import { getGameService } from '../services/games-service';
+import { generateUniqueId } from '../utils';
 
 interface GameConnection {
   gameId: number;
@@ -66,23 +67,29 @@ export const setupGameSockets = (io: Server) => {
       handleDisconnection(socket);
     });
 
-    socket.on('request-game-state', async (data: { gameId: number }) => {
-      try {
-        if (!isValidRoomConnection(socket.id, data.gameId)) {
+    socket.on(
+      'request-game-state',
+      async (data: { gameId: number; username: string }) => {
+        try {
+          if (!isValidRoomConnection(socket.id, data.gameId)) {
+            socket.emit('error', {
+              message: 'You are not connected to this game',
+            });
+            return;
+          }
+          const game = await getGameService(data.gameId);
+          const filteredShips = game.ships.filter(
+            (ship) => ship.player === data.username
+          );
+          game.ships = filteredShips;
+          socket.emit('game-state-update', game);
+        } catch (error: any) {
           socket.emit('error', {
-            message: 'You are not connected to this game',
+            message: error.message || 'Failed to get game state',
           });
-          return;
         }
-
-        const game = await getGameService(data.gameId);
-        socket.emit('game-state-update', game);
-      } catch (error: any) {
-        socket.emit('error', {
-          message: error.message || 'Failed to get game state',
-        });
       }
-    });
+    );
 
     socket.on('disconnect', () => {
       console.log(`Socket disconnected: ${socket.id}`);

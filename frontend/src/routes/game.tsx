@@ -3,7 +3,7 @@ import { PlacingShips } from '@/components/game/phases/placing-ships';
 import { Playing } from '@/components/game/phases/playing';
 import { WaitingOpponentPlacingShips } from '@/components/game/phases/waiting-opponent-placing-ships';
 import { Card, CardContent } from '@/components/ui/card';
-import { GRID_SIZE } from '@/constants';
+import { GameRoomStatuses, GRID_SIZE, maxAmountOfShips } from '@/constants';
 import { useGameWebSocket } from '@/hooks/use-game-websocket';
 import { useMainStore } from '@/store/main-store';
 import type { Board as BoardType } from '@/types';
@@ -24,15 +24,6 @@ export const Route = createFileRoute('/game')({
   component: RouteComponent,
 });
 
-enum GamePhases {
-  WAITING_FOR_OPPONENT = 'WAITING_FOR_OPPONENT',
-  PLACING_SHIPS = 'PLACING_SHIPS',
-  WAITING_OPPONENT_PLACING_SHIPS = 'WAITING_OPPONENT_PLACING_SHIPS',
-  PLAYERS_TURN = 'PLAYERS_TURN',
-  OPPONENTS_TURN = 'OPPONENTS_TURN',
-  GAME_OVER = 'GAME_OVER',
-}
-
 function RouteComponent() {
   const gameRoom = useMainStore((state) => state.gameRoom)!;
   const player = useMainStore((state) => state.player)!;
@@ -46,7 +37,8 @@ function RouteComponent() {
       .fill(null)
       .map(() => Array(GRID_SIZE).fill(''))
   );
-  const { isConnected, isConnecting, gameState, joinGame } = useGameWebSocket();
+
+  const { isConnected, gameState, joinGame } = useGameWebSocket();
 
   if (player === null) {
     throw redirect({ to: '/' });
@@ -66,9 +58,21 @@ function RouteComponent() {
     joinGameRoom();
   }, [isConnected, gameRoom.id, player.name, joinGame]);
 
-  const phase = gameState;
+  if (!gameState) {
+    return (
+      <Card className="w-full max-w-4xl">
+        <CardContent className="flex items-center gap-5 justify-center">
+          <LoaderCircle className="size-9 animate-spin" />
+          <h1 className="text-4xl font-bold">Loading...</h1>
+        </CardContent>
+      </Card>
+    );
+  }
 
-  if (phase === GamePhases.WAITING_FOR_OPPONENT) {
+  const phase = gameState.status;
+  console.log('---->', phase);
+
+  if (phase === GameRoomStatuses.WAITING_FOR_PLAYER) {
     return (
       <Card className="w-full max-w-4xl">
         <CardContent className="flex items-center gap-5 justify-center">
@@ -78,7 +82,11 @@ function RouteComponent() {
       </Card>
     );
   }
-  if (phase === GamePhases.PLACING_SHIPS) {
+
+  if (
+    phase === GameRoomStatuses.SHIPS_SETUP &&
+    gameState.ships?.length !== maxAmountOfShips
+  ) {
     return (
       <PlacingShips
         room={gameRoom}
@@ -88,24 +96,24 @@ function RouteComponent() {
       />
     );
   }
-  if (phase === GamePhases.WAITING_OPPONENT_PLACING_SHIPS) {
+
+  if (phase === GameRoomStatuses.SHIPS_SETUP) {
     return <WaitingOpponentPlacingShips room={gameRoom} board={playerBoard} />;
   }
-  if (
-    phase === GamePhases.PLAYERS_TURN ||
-    phase === GamePhases.OPPONENTS_TURN
-  ) {
+
+  if (phase === GameRoomStatuses.IN_PROGRESS) {
     return (
       <Playing
         room={gameRoom}
         playerBoard={playerBoard}
         opponentBoard={opponentBoard}
         submitMove={console.log}
-        isPlayerTurn={phase === GamePhases.PLAYERS_TURN}
+        isPlayerTurn={player.name == gameState.currentTurn}
       />
     );
   }
-  if (phase === GamePhases.GAME_OVER) {
+
+  if (phase === GameRoomStatuses.FINISHED) {
     return (
       <GameOver
         room={gameRoom}

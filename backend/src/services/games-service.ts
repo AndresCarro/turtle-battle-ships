@@ -2,7 +2,7 @@ import { Server } from 'socket.io';
 import { AppDataSource } from '../data-source';
 import { Game, GameStatus } from '../entities/Game';
 import { getShipTypeSize, Orientation, Ship, ShipType } from '../entities/Ship';
-import { Shot } from '../entities/Shot';
+import { Shot, ShotSuccess } from '../entities/Shot';
 import { saveGameReplay } from './game-replay-services';
 
 const gameRepository = AppDataSource.getRepository(Game);
@@ -167,27 +167,25 @@ export const postShotService = async (
     throw Error(`User ${username} cannot make a shot. It is not his turn`);
   }
 
+  const previousShots = game.shots.filter((shot) => shot.player === username);
+
   const opponentUsername =
     game.player1 === username ? game.player2 : game.player1;
 
   const opponentShips = await getFleetsService(game.id, opponentUsername);
 
-  let hit = false;
+  let shotSuccess = ShotSuccess.miss;
 
   for (const ship of opponentShips) {
-    const shipPositions = [];
-
-    for (let i = 0; i < ship.length; i++) {
-      if (ship.orientation === Orientation.HORIZONTAL) {
-        shipPositions.push({ x: ship.x + i, y: ship.y });
-      } else {
-        shipPositions.push({ x: ship.x, y: ship.y + i });
-      }
-    }
+    const shipPositions = getShipPositions(ship);
 
     if (shipPositions.some((pos) => pos.x === x && pos.y === y)) {
-      hit = true;
-      break;
+      shotSuccess = hasSunkShip(
+        getShotPositions(previousShots).concat({ x, y }),
+        shipPositions
+      )
+        ? ShotSuccess.sunk
+        : ShotSuccess.hit;
     }
   }
 
@@ -196,7 +194,7 @@ export const postShotService = async (
       player: username,
       x,
       y,
-      hit,
+      shotSuccess,
       game,
       gameId: game.id,
     })
@@ -206,7 +204,7 @@ export const postShotService = async (
     player: username,
     x,
     y,
-    hit,
+    shotSuccess,
     shot,
   });
 
@@ -238,7 +236,10 @@ export const postShotService = async (
 function checkIfGameFinished(game: Game, lastShooter: string): boolean {
   const opponentShips = game.ships.filter((s) => s.player !== lastShooter);
 
-  const hits = game.shots.filter((s) => s.player === lastShooter && s.hit);
+  const hits = game.shots.filter(
+    (shot) =>
+      shot.player === lastShooter && shot.shotSuccess === ShotSuccess.hit
+  );
 
   const allPositions = opponentShips.flatMap((ship) => {
     const positions = [];
@@ -261,6 +262,40 @@ function checkIfGameFinished(game: Game, lastShooter: string): boolean {
   }
 
   return false;
+}
+
+function getShipPositions(ship: Ship): { x: number; y: number }[] {
+  const shipPositions = [];
+  for (let i = 0; i < ship.length; i++) {
+    if (ship.orientation === Orientation.HORIZONTAL) {
+      shipPositions.push({ x: ship.x + i, y: ship.y });
+    } else {
+      shipPositions.push({ x: ship.x, y: ship.y + i });
+    }
+  }
+  return shipPositions;
+}
+
+function hasSunkShip(
+  shots: { x: number; y: number }[],
+  shipPositions: { x: number; y: number }[]
+): boolean {
+  for (const shipPosition of shipPositions) {
+    if (
+      !shots.some(
+        (shot) => shipPosition.x === shot.x && shipPosition.y === shot.y
+      )
+    ) {
+      return false;
+    }
+  }
+  return true;
+}
+
+function getShotPositions(shots: Shot[]): { x: number; y: number }[] {
+  return shots.map((shot) => {
+    return { x: shot.x, y: shot.y };
+  });
 }
 
 export const getShotsService = async (id: number) => {

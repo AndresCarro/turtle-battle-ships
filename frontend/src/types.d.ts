@@ -2,6 +2,26 @@ import type { GameRoomStatuses } from './constants';
 
 export type GameRoomStatus = `${GameRoomStatuses}`;
 
+export type Ship = {
+  id: number;
+  player: string;
+  type: ShipType;
+  x: number;
+  y: number;
+  orientation: Orientation;
+  length: number;
+  gameId: number;
+};
+
+export type Shot = {
+  id: number;
+  player: string;
+  x: number;
+  y: number;
+  shotSuccess: string;
+  gameId: number;
+};
+
 export type Player = {
   id: string;
   name: string;
@@ -18,6 +38,8 @@ export type GameRoom = {
   creationTimestamp: Date; // ISO format
   player1: Player | null;
   player2: Player | null;
+  ships?: Ship[];
+  shots?: Shot[];
 };
 
 export type Message = {
