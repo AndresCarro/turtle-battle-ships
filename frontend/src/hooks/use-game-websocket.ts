@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { gameWebSocketService } from '@/services/websocket-service';
 import type { GameWebSocketEvents } from '@/services/websocket-service';
-import type { Message } from '@/types';
+import type { GameRoom, Message } from '@/types';
 
 export interface UseGameWebSocketOptions {
   gameId?: number;
@@ -13,7 +13,7 @@ export interface UseGameWebSocketReturn {
   isConnected: boolean;
   isConnecting: boolean;
   error: string | null;
-  gameState: any | null;
+  gameState: GameRoom | null;
   messages: Array<Message>;
 
   // Actions
@@ -43,7 +43,7 @@ export const useGameWebSocket = (
   const [isConnected, setIsConnected] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [gameState, setGameState] = useState<any | null>(null);
+  const [gameState, setGameState] = useState<GameRoom | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
 
   // Connection functions
@@ -117,7 +117,7 @@ export const useGameWebSocket = (
 
   // Setup event handlers
   useEffect(() => {
-    const handleGameStateUpdate = (data: any) => {
+    const handleGameStateUpdate = (data: GameRoom) => {
       setGameState(data);
       console.log('🔄 Game state updated:', data);
     };

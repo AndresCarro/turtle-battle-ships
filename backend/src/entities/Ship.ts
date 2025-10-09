@@ -4,15 +4,16 @@ import {
   JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn,
-} from "typeorm";
-import { Game } from "./Game";
+} from 'typeorm';
+import { Game } from './Game';
 
 export enum ShipType {
-  CARRIER = "CARRIER",
-  DESTROYER = "DESTROYER",
-  BATTLESHIP = "BATTLESHIP",
-  SUBMARINE = "SUBMARINE",
+  CARRIER = 'Carrier',
+  DESTROYER = 'Destroyer',
+  BATTLESHIP = 'Battleship',
+  SUBMARINE = 'Submarine',
 }
+
 export function getShipTypeSize(shipType: ShipType): number {
   switch (shipType) {
     case ShipType.CARRIER:
@@ -29,8 +30,8 @@ export function getShipTypeSize(shipType: ShipType): number {
 }
 
 export enum Orientation {
-  HORIZONTAL = "HORIZONTAL",
-  VERTICAL = "VERTICAL",
+  HORIZONTAL = 'HORIZONTAL',
+  VERTICAL = 'VERTICAL',
 }
 
 @Entity()
@@ -41,7 +42,7 @@ export class Ship {
   @Column()
   player!: string;
 
-  @Column({ type: "enum", enum: ShipType })
+  @Column({ type: 'enum', enum: ShipType })
   type!: ShipType;
 
   @Column()
@@ -50,7 +51,7 @@ export class Ship {
   @Column()
   y!: number;
 
-  @Column({ type: "enum", enum: Orientation })
+  @Column({ type: 'enum', enum: Orientation })
   orientation!: Orientation;
 
   @Column()
@@ -59,7 +60,7 @@ export class Ship {
   @Column()
   gameId!: number;
 
-  @ManyToOne(() => Game, (game) => game.ships, { onDelete: "CASCADE" })
-  @JoinColumn({ name: "gameId" })
+  @ManyToOne(() => Game, (game) => game.ships, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'gameId' })
   game!: Game;
 }

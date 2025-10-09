@@ -1,5 +1,17 @@
-import { Column, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from "typeorm";
-import { Game } from "./Game";
+import {
+  Column,
+  Entity,
+  JoinColumn,
+  ManyToOne,
+  PrimaryGeneratedColumn,
+} from 'typeorm';
+import { Game } from './Game';
+
+export enum ShotSuccess {
+  'miss',
+  'hit',
+  'sunk',
+}
 
 @Entity()
 export class Shot {
@@ -15,11 +27,11 @@ export class Shot {
   @Column()
   y!: number;
 
-  @Column()
-  hit!: boolean;
+  @Column({ type: 'enum', enum: ShotSuccess })
+  shotSuccess!: ShotSuccess;
 
-  @ManyToOne(() => Game, (game) => game.shots, { onDelete: "CASCADE" })
-  @JoinColumn({ name: "gameId" })
+  @ManyToOne(() => Game, (game) => game.shots, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'gameId' })
   game!: Game;
 
   @Column()
