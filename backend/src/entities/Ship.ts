@@ -8,10 +8,10 @@ import {
 import { Game } from './Game';
 
 export enum ShipType {
-  CARRIER = 'Carrier',
-  DESTROYER = 'Destroyer',
-  BATTLESHIP = 'Battleship',
-  SUBMARINE = 'Submarine',
+  CARRIER = 'CARRIER',
+  DESTROYER = 'DESTROYER',
+  BATTLESHIP = 'BATTLESHIP',
+  SUBMARINE = 'SUBMARINE',
 }
 
 export function getShipTypeSize(shipType: ShipType): number {

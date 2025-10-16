@@ -60,7 +60,6 @@ function RouteComponent() {
   }
 
   const phase = gameState.status;
-  console.log('---->', phase);
 
   if (phase === GameRoomStatuses.WAITING_FOR_PLAYER) {
     return (

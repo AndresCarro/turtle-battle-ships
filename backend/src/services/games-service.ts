@@ -4,6 +4,7 @@ import { Game, GameStatus } from '../entities/Game';
 import { getShipTypeSize, Orientation, Ship, ShipType } from '../entities/Ship';
 import { Shot, ShotSuccess } from '../entities/Shot';
 import { saveGameReplay } from './game-replay-services';
+import { emitToPlayer } from '../sockets/game-sockets';
 
 const gameRepository = AppDataSource.getRepository(Game);
 const shipRepository = AppDataSource.getRepository(Ship);
@@ -74,6 +75,7 @@ export const postFleetService = async (
     relations: ['ships'],
   });
   if (!game) throw new Error('Game not found');
+  if (!socketIOInstance) throw new Error('No socket service');
 
   const existingShips = game.ships.filter((s) => s.player === player);
   if (existingShips.length > 0) throw new Error('Player already placed ships');
@@ -90,12 +92,12 @@ export const postFleetService = async (
     switch (type) {
       case ShipType.CARRIER:
         if (typeCount[type] !== 1) {
-          throw new Error(`Player must place exactly 1 ships of type ${type}`);
+          throw new Error(`Player must place exactly 1 ship of type ${type}`);
         }
         break;
       case ShipType.BATTLESHIP:
         if (typeCount[type] !== 1) {
-          throw new Error(`Player must place exactly 1 ships of type ${type}`);
+          throw new Error(`Player must place exactly 1 ship of type ${type}`);
         }
         break;
       case ShipType.SUBMARINE:
@@ -105,7 +107,7 @@ export const postFleetService = async (
         break;
       case ShipType.DESTROYER:
         if (typeCount[type] !== 1) {
-          throw new Error(`Player must place exactly 1 ships of type ${type}`);
+          throw new Error(`Player must place exactly 1 ship of type ${type}`);
         }
         break;
       default:
@@ -132,14 +134,24 @@ export const postFleetService = async (
     where: { game: { id: gameId } },
   });
   const players = Array.from(new Set(allShips.map((s) => s.player)));
+
   if (players.length === 2) {
     game.status = GameStatus.IN_PROGRESS;
     await gameRepository.update(gameId, { status: GameStatus.IN_PROGRESS });
+    const updatedGame = await getGameService(gameId);
+    updatedGame.ships = ships.filter((ship) => ship.player === player);
+    emitToGameRoom(gameId, 'game-state-update', updatedGame);
+  } else {
+    const updatedGame = await getGameService(gameId);
+    updatedGame.ships = ships.filter((ship) => ship.player === player);
+    emitToPlayer(
+      socketIOInstance,
+      gameId,
+      player,
+      'game-state-update',
+      updatedGame
+    );
   }
-
-  const updatedGame = await getGameService(gameId);
-  updatedGame.ships = ships.filter((ship) => ship.player === player);
-  emitToGameRoom(gameId, 'game-state-update', updatedGame);
 
   return savedShips;
 };
