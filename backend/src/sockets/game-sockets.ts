@@ -105,8 +105,14 @@ export const setupGameSockets = (io: Server) => {
           });
           return;
         }
-        console.log(data.username + ' placed its ships');
-        await postFleetService(data.gameId, data.username, data.ships);
+        try {
+          await postFleetService(data.gameId, data.username, data.ships);
+          console.log(data.username + ' placed its ships');
+        } catch (err: any) {
+          socket.emit('error', {
+            message: "Coudln't place ships: " + err.message,
+          });
+        }
       }
     );
 

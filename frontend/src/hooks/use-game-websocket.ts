@@ -97,7 +97,6 @@ export const useGameWebSocket = (
       setError(null);
       try {
         await gameWebSocketService.postFleet(gameId, username, ships);
-        console.log('gola');
       } catch (err) {
         setError(
           err instanceof Error ? err.message : 'Failed setting up ships'
@@ -263,18 +262,6 @@ export const useGameWebSocket = (
 
     attemptJoin();
   }, [isConnected, gameId, username, joinGame]);
-
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      // Reset the join flag and leave the game
-      hasJoinedRef.current = false;
-      if (gameWebSocketService.currentGameId) {
-        console.log('🚪 Leaving game on component unmount');
-        gameWebSocketService.leaveGame();
-      }
-    };
-  }, []);
 
   return {
     isConnected,
