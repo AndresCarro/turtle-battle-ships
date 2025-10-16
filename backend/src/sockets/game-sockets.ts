@@ -1,6 +1,7 @@
 import { Server, Socket } from 'socket.io';
-import { getGameService } from '../services/games-service';
+import { getGameService, postFleetService } from '../services/games-service';
 import { generateUniqueId } from '../utils';
+import { ShipCreationDTO } from '../entities/Ship';
 
 interface GameConnection {
   gameId: number;
@@ -88,6 +89,24 @@ export const setupGameSockets = (io: Server) => {
             message: error.message || 'Failed to get game state',
           });
         }
+      }
+    );
+
+    socket.on(
+      'post-fleet',
+      async (data: {
+        gameId: number;
+        username: string;
+        ships: ShipCreationDTO[];
+      }) => {
+        if (!isValidRoomConnection(socket.id, data.gameId)) {
+          socket.emit('error', {
+            message: 'You are not connected to this game',
+          });
+          return;
+        }
+        console.log(data.username + ' placed its ships');
+        await postFleetService(data.gameId, data.username, data.ships);
       }
     );
 
