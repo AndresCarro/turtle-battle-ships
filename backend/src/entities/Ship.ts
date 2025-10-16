@@ -34,6 +34,13 @@ export enum Orientation {
   VERTICAL = 'VERTICAL',
 }
 
+export type ShipCreationDTO = {
+  type: ShipType;
+  x: number;
+  y: number;
+  orientation: Orientation;
+};
+
 @Entity()
 export class Ship {
   @PrimaryGeneratedColumn()

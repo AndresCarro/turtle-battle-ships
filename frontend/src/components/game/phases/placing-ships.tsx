@@ -3,10 +3,15 @@ import { Board } from '../board';
 import { BaseComponent } from './base';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
-import type { Board as BoardType, GameRoom } from '@/types';
+import type {
+  Board as BoardType,
+  GameRoom,
+  Player,
+  ShipForCreation,
+} from '@/types';
 import { useState } from 'react';
 import { SHIPS } from '@/constants';
-import { placeShip } from '@/domain/placing-ships';
+import { placeShip, getShipName } from '@/domain/placing-ships';
 import { cn } from '@/utils/ui';
 
 export function PlacingShips({
@@ -14,15 +19,22 @@ export function PlacingShips({
   board,
   setBoard,
   submitFleet,
+  player,
 }: {
   room: GameRoom;
   board: BoardType;
   setBoard: (board: BoardType) => void;
-  submitFleet: () => void;
+  submitFleet: (
+    gameId: number,
+    username: string,
+    ships: ShipForCreation[]
+  ) => void;
+  player: Player;
 }) {
   const [selectedShip, setSelectedShip] = useState('');
   const [orientation, setOrientation] = useState('horizontal');
   const [usedShips, setUsedShips] = useState<string[]>([]);
+  const [shipsToSend, setShipsToSend] = useState<ShipForCreation[]>([]);
 
   const handleCellClick = (i: number, j: number) => {
     if (!selectedShip) return;
@@ -36,6 +48,15 @@ export function PlacingShips({
     if (newBoard) {
       setBoard(newBoard);
       setUsedShips([...usedShips, selectedShip]);
+      setShipsToSend([
+        ...shipsToSend,
+        {
+          type: getShipName(selectedShip).toUpperCase(),
+          x: i,
+          y: j,
+          orientation: orientation.toUpperCase(),
+        },
+      ]);
       setSelectedShip('');
     }
   };
@@ -94,7 +115,7 @@ export function PlacingShips({
             usedShips.length !==
             Object.values(SHIPS).reduce((acc, ship) => acc + ship.count, 0)
           }
-          onClick={submitFleet}
+          onClick={() => submitFleet(room.id, player.name, shipsToSend)}
         >
           Submit fleet
         </Button>

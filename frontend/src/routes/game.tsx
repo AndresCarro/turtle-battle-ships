@@ -9,7 +9,7 @@ import { useMainStore } from '@/store/main-store';
 import type { Board as BoardType } from '@/types';
 import { createFileRoute, redirect } from '@tanstack/react-router';
 import { LoaderCircle } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 
 export const Route = createFileRoute('/game')({
   beforeLoad: () => {
@@ -38,25 +38,15 @@ function RouteComponent() {
       .map(() => Array(GRID_SIZE).fill(''))
   );
 
-  const { isConnected, gameState, joinGame } = useGameWebSocket();
+  const { gameState, postFleet } = useGameWebSocket({
+    gameId: gameRoom.id,
+    username: player.name,
+    autoConnect: true,
+  });
 
   if (player === null) {
     throw redirect({ to: '/' });
   }
-
-  useEffect(() => {
-    const joinGameRoom = async () => {
-      if (!isConnected) {
-        try {
-          await joinGame(gameRoom.id, player.name);
-        } catch (err) {
-          console.error('Failed to join game:', err);
-        }
-      }
-    };
-
-    joinGameRoom();
-  }, [isConnected, gameRoom.id, player.name, joinGame]);
 
   if (!gameState) {
     return (
@@ -92,7 +82,8 @@ function RouteComponent() {
         room={gameRoom}
         board={playerBoard}
         setBoard={setPlayerBoard}
-        submitFleet={console.log}
+        submitFleet={postFleet}
+        player={player}
       />
     );
   }

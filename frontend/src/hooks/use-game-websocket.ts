@@ -1,7 +1,7 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { gameWebSocketService } from '@/services/websocket-service';
 import type { GameWebSocketEvents } from '@/services/websocket-service';
-import type { GameRoom, Message } from '@/types';
+import type { GameRoom, Message, ShipForCreation } from '@/types';
 
 export interface UseGameWebSocketOptions {
   gameId?: number;
@@ -21,6 +21,11 @@ export interface UseGameWebSocketReturn {
   disconnect: () => void;
   joinGame: (gameId: number, username: string) => Promise<void>;
   leaveGame: () => void;
+  postFleet: (
+    gameIe: number,
+    username: string,
+    ships: ShipForCreation[]
+  ) => Promise<void>;
   requestGameState: () => void;
   sendMessage: (message: string) => void;
 
@@ -45,6 +50,7 @@ export const useGameWebSocket = (
   const [error, setError] = useState<string | null>(null);
   const [gameState, setGameState] = useState<GameRoom | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
+  const hasJoinedRef = useRef(false);
 
   // Connection functions
   const connect = useCallback(async () => {
@@ -74,12 +80,32 @@ export const useGameWebSocket = (
   const joinGame = useCallback(async (gameId: number, username: string) => {
     setError(null);
     try {
+      console.log(
+        `📞 joinGame called for game ${gameId}, username ${username}`
+      );
       await gameWebSocketService.joinGame(gameId, username);
+      console.log(`✅ Successfully joined game ${gameId}`);
     } catch (err) {
+      console.error('❌ Failed to join game:', err);
       setError(err instanceof Error ? err.message : 'Failed to join game');
       throw err;
     }
   }, []);
+
+  const postFleet = useCallback(
+    async (gameId: number, username: string, ships: ShipForCreation[]) => {
+      setError(null);
+      try {
+        await gameWebSocketService.postFleet(gameId, username, ships);
+        console.log('gola');
+      } catch (err) {
+        setError(
+          err instanceof Error ? err.message : 'Failed setting up ships'
+        );
+      }
+    },
+    []
+  );
 
   const leaveGame = useCallback(() => {
     gameWebSocketService.leaveGame();
@@ -215,20 +241,36 @@ export const useGameWebSocket = (
 
   // Auto-join game if gameId and username are provided
   useEffect(() => {
-    if (
-      isConnected &&
-      gameId &&
-      username &&
-      gameWebSocketService.currentGameId !== gameId
-    ) {
-      joinGame(gameId, username).catch(console.error);
-    }
+    const attemptJoin = async () => {
+      // Prevent duplicate joins
+      if (
+        isConnected &&
+        gameId &&
+        username &&
+        gameWebSocketService.currentGameId !== gameId &&
+        !hasJoinedRef.current
+      ) {
+        hasJoinedRef.current = true;
+        try {
+          console.log(`🎮 Auto-joining game ${gameId} as ${username}`);
+          await joinGame(gameId, username);
+        } catch (error) {
+          console.error('Failed to auto-join game:', error);
+          hasJoinedRef.current = false;
+        }
+      }
+    };
+
+    attemptJoin();
   }, [isConnected, gameId, username, joinGame]);
 
   // Cleanup on unmount
   useEffect(() => {
     return () => {
+      // Reset the join flag and leave the game
+      hasJoinedRef.current = false;
       if (gameWebSocketService.currentGameId) {
+        console.log('🚪 Leaving game on component unmount');
         gameWebSocketService.leaveGame();
       }
     };
@@ -243,6 +285,7 @@ export const useGameWebSocket = (
     connect,
     disconnect,
     joinGame,
+    postFleet,
     leaveGame,
     requestGameState,
     sendMessage,

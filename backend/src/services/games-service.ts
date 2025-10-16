@@ -135,11 +135,11 @@ export const postFleetService = async (
   if (players.length === 2) {
     game.status = GameStatus.IN_PROGRESS;
     await gameRepository.update(gameId, { status: GameStatus.IN_PROGRESS });
-
-    const updatedGame = await getGameService(gameId);
-    updatedGame.ships = ships.filter((ship) => ship.player === player);
-    emitToGameRoom(gameId, 'game-state-update', updatedGame);
   }
+
+  const updatedGame = await getGameService(gameId);
+  updatedGame.ships = ships.filter((ship) => ship.player === player);
+  emitToGameRoom(gameId, 'game-state-update', updatedGame);
 
   return savedShips;
 };

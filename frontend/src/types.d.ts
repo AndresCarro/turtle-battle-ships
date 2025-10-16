@@ -13,6 +13,13 @@ export type Ship = {
   gameId: number;
 };
 
+export type ShipForCreation = {
+  type: ShipType;
+  x: number;
+  y: number;
+  orientation: Orientation;
+};
+
 export type Shot = {
   id: number;
   player: string;

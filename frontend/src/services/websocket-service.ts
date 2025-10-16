@@ -1,4 +1,4 @@
-import type { Message } from '@/types';
+import type { Message, ShipForCreation } from '@/types';
 import { io, Socket } from 'socket.io-client';
 
 export interface GameWebSocketEvents {
@@ -68,7 +68,6 @@ export class GameWebSocketService {
 
       this.socket.on('disconnect', (reason) => {
         console.log('❌ Disconnected from WebSocket server:', reason);
-        this.connectionPromise = null;
       });
 
       this.setupEventForwarding();
@@ -134,11 +133,25 @@ export class GameWebSocketService {
     });
   }
 
+  async postFleet(
+    gameId: number,
+    username: string,
+    ships: ShipForCreation[]
+  ): Promise<void> {
+    await this.connect();
+
+    if (!this.socket || !this.socket.connected) {
+      throw new Error('Not connected to server');
+    }
+
+    this.socket.emit('post-fleet', { gameId, username, ships });
+  }
+
   /**
    * Leave the current game room
    */
   leaveGame(): void {
-    if (this.socket && this.gameId) {
+    if (this.socket && this.socket.connected && this.gameId) {
       this.socket.emit('leave-game');
       this.gameId = null;
       this.username = null;
@@ -149,7 +162,7 @@ export class GameWebSocketService {
    * Request current game state
    */
   requestGameState(): void {
-    if (this.socket && this.gameId) {
+    if (this.socket && this.socket.connected && this.gameId) {
       this.socket.emit('request-game-state', { gameId: this.gameId });
     }
   }
@@ -158,7 +171,7 @@ export class GameWebSocketService {
    * Send a chat message
    */
   sendMessage(message: string): void {
-    if (this.socket && this.gameId) {
+    if (this.socket && this.socket.connected && this.gameId) {
       this.socket.emit('send-message', { message });
     }
   }
