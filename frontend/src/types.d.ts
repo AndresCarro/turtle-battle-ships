@@ -25,7 +25,7 @@ export type Shot = {
   player: string;
   x: number;
   y: number;
-  shotSuccess: string;
+  shotSuccess: number;
   gameId: number;
 };
 

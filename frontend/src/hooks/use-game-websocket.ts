@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { gameWebSocketService } from '@/services/websocket-service';
 import type { GameWebSocketEvents } from '@/services/websocket-service';
-import type { GameRoom, Message, ShipForCreation } from '@/types';
+import type { GameRoom, Message, ShipForCreation, Shot } from '@/types';
 
 export interface UseGameWebSocketOptions {
   gameId?: number;
@@ -25,6 +25,12 @@ export interface UseGameWebSocketReturn {
     gameIe: number,
     username: string,
     ships: ShipForCreation[]
+  ) => Promise<void>;
+  makeShot: (
+    gameId: number,
+    username: string,
+    x: number,
+    y: number
   ) => Promise<void>;
   requestGameState: () => void;
   sendMessage: (message: string) => void;
@@ -101,6 +107,18 @@ export const useGameWebSocket = (
         setError(
           err instanceof Error ? err.message : 'Failed setting up ships'
         );
+      }
+    },
+    []
+  );
+
+  const makeShot = useCallback(
+    async (gameId: number, username: string, x: number, y: number) => {
+      setError(null);
+      try {
+        await gameWebSocketService.makeShot(gameId, username, x, y);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed making shot');
       }
     },
     []
@@ -273,6 +291,7 @@ export const useGameWebSocket = (
     disconnect,
     joinGame,
     postFleet,
+    makeShot,
     leaveGame,
     requestGameState,
     sendMessage,
