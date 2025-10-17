@@ -4,6 +4,7 @@ import { Playing } from '@/components/game/phases/playing';
 import { WaitingOpponentPlacingShips } from '@/components/game/phases/waiting-opponent-placing-ships';
 import { Card, CardContent } from '@/components/ui/card';
 import { GameRoomStatuses, GRID_SIZE, maxAmountOfShips } from '@/constants';
+import { boardsAreUpToDate, placeShotsOnBoard } from '@/domain/playing';
 import { useGameWebSocket } from '@/hooks/use-game-websocket';
 import { useMainStore } from '@/store/main-store';
 import type { Board as BoardType } from '@/types';
@@ -38,7 +39,7 @@ function RouteComponent() {
       .map(() => Array(GRID_SIZE).fill(''))
   );
 
-  const { gameState, postFleet } = useGameWebSocket({
+  const { gameState, postFleet, makeShot } = useGameWebSocket({
     gameId: gameRoom.id,
     username: player.name,
     autoConnect: true,
@@ -60,6 +61,26 @@ function RouteComponent() {
   }
 
   const phase = gameState.status;
+
+  if (
+    phase === GameRoomStatuses.IN_PROGRESS &&
+    !boardsAreUpToDate(
+      playerBoard,
+      opponentBoard,
+      gameState.shots?.filter((shot) => shot.player === player.name) ?? [],
+      gameState.shots?.filter((shot) => shot.player !== player.name) ?? []
+    )
+  ) {
+    if (gameState.currentTurn === player.name) {
+      const opponentShots =
+        gameState.shots?.filter((shot) => shot.player !== player.name) ?? [];
+      setPlayerBoard(placeShotsOnBoard(playerBoard, opponentShots));
+    } else {
+      const playerShots =
+        gameState.shots?.filter((shot) => shot.player === player.name) ?? [];
+      setOpponentBoard(placeShotsOnBoard(opponentBoard, playerShots));
+    }
+  }
 
   if (phase === GameRoomStatuses.WAITING_FOR_PLAYER) {
     return (
@@ -97,7 +118,8 @@ function RouteComponent() {
         room={gameRoom}
         playerBoard={playerBoard}
         opponentBoard={opponentBoard}
-        submitMove={console.log}
+        username={player.name}
+        submitMove={makeShot}
         isPlayerTurn={player.name == gameState.currentTurn}
       />
     );

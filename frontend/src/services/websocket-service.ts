@@ -1,4 +1,4 @@
-import type { Message, ShipForCreation } from '@/types';
+import type { Message, ShipForCreation, Shot } from '@/types';
 import { io, Socket } from 'socket.io-client';
 
 export interface GameWebSocketEvents {
@@ -145,6 +145,19 @@ export class GameWebSocketService {
     }
 
     this.socket.emit('post-fleet', { gameId, username, ships });
+  }
+
+  async makeShot(
+    gameId: number,
+    username: string,
+    x: number,
+    y: number
+  ): Promise<void> {
+    if (!this.socket || !this.socket.connected) {
+      throw new Error('Not connected to server');
+    }
+
+    this.socket.emit('make-shot', { gameId, username, x, y });
   }
 
   /**

@@ -1,7 +1,12 @@
 import { Server, Socket } from 'socket.io';
-import { getGameService, postFleetService } from '../services/games-service';
+import {
+  getGameService,
+  postFleetService,
+  postShotService,
+} from '../services/games-service';
 import { generateUniqueId } from '../utils';
 import { ShipCreationDTO } from '../entities/Ship';
+import { Shot } from '../entities/Shot';
 
 interface GameConnection {
   gameId: number;
@@ -111,6 +116,30 @@ export const setupGameSockets = (io: Server) => {
         } catch (err: any) {
           socket.emit('error', {
             message: "Coudln't place ships: " + err.message,
+          });
+        }
+      }
+    );
+
+    socket.on(
+      'make-shot',
+      async (data: {
+        gameId: number;
+        username: string;
+        x: number;
+        y: number;
+      }) => {
+        if (!isValidRoomConnection(socket.id, data.gameId)) {
+          socket.emit('error', {
+            message: 'You are not connected to this game',
+          });
+          return;
+        }
+        try {
+          await postShotService(data.gameId, data.username, data.x, data.y);
+        } catch (err: any) {
+          socket.emit('error', {
+            message: "Coudln't make shot: " + err.message,
           });
         }
       }

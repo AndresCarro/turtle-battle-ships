@@ -178,6 +178,7 @@ export const postShotService = async (
   if (game.currentTurn !== username) {
     throw Error(`User ${username} cannot make a shot. It is not his turn`);
   }
+  if (!socketIOInstance) throw new Error('No socket service available');
 
   const previousShots = game.shots.filter((shot) => shot.player === username);
 
@@ -212,14 +213,6 @@ export const postShotService = async (
     })
   );
 
-  emitToGameRoom(id, 'shot-fired', {
-    player: username,
-    x,
-    y,
-    shotSuccess,
-    shot,
-  });
-
   if (checkIfGameFinished(game, username)) {
     await gameRepository.update(game.id, {
       status: GameStatus.FINISHED,
@@ -237,13 +230,26 @@ export const postShotService = async (
   const newCurrentTurn =
     game.player1 === username ? game.player2 : game.player1;
   await gameRepository.update(game.id, { currentTurn: newCurrentTurn });
-  emitToGameRoom(id, 'turn-changed', {
-    currentTurn: newCurrentTurn,
-    previousTurn: username,
-  });
+  const updatedGame = await getGameService(id);
+  emitGameStateUpdate(id, updatedGame, socketIOInstance);
 
   return shot;
 };
+
+function emitGameStateUpdate(gameId: number, game: Game, io: Server) {
+  const shipsForPlayerOne = game.ships.filter(
+    (ship) => ship.player === game.player1
+  );
+  const shipsForPlayerTwo = game.ships.filter(
+    (ship) => ship.player === game.player2
+  );
+
+  game.ships = shipsForPlayerOne;
+  emitToPlayer(io, gameId, game.player1, 'game-state-update', game);
+
+  game.ships = shipsForPlayerTwo;
+  emitToPlayer(io, gameId, game.player2, 'game-state-update', game);
+}
 
 function checkIfGameFinished(game: Game, lastShooter: string): boolean {
   const opponentShips = game.ships.filter((s) => s.player !== lastShooter);
