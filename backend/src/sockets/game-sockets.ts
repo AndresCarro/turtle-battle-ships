@@ -5,8 +5,8 @@ import {
   postShotService,
 } from '../services/games-service';
 import { generateUniqueId } from '../utils';
-import { ShipCreationDTO } from '../entities/Ship';
-import { Shot } from '../entities/Shot';
+import { ShipCreationDTO, ShipDTO } from '../dto/ship-creation-dto';
+import { Ship } from '../models/Ship';
 
 interface GameConnection {
   gameId: number;
@@ -111,11 +111,18 @@ export const setupGameSockets = (io: Server) => {
           return;
         }
         try {
-          await postFleetService(data.gameId, data.username, data.ships);
-          console.log(data.username + ' placed its ships');
+          const dtos = data.ships.map(ShipDTO.fromCreationDTO);
+
+          const ships: Ship[] = dtos.map((dto) =>
+            dto.toDomain(data.gameId, data.username)
+          );
+
+          await postFleetService(data.gameId, data.username, ships);
+
+          console.log(`${data.username} placed its ships`);
         } catch (err: any) {
           socket.emit('error', {
-            message: "Coudln't place ships: " + err.message,
+            message: "Couldn't place ships: " + err.message,
           });
         }
       }

@@ -1,4 +1,4 @@
-import { Request, Response } from "express";
+import { Request, Response } from 'express';
 import {
   createGameService,
   getFleetsService,
@@ -8,19 +8,19 @@ import {
   listGamesService,
   postFleetService,
   postShotService,
-} from "../services/games-service";
+} from '../services/games-service';
 
 export const index = (req: Request, res: Response) => {
-  res.status(200).send("pong");
+  res.status(200).send('pong');
 };
 
 export const createGame = async (req: Request, res: Response) => {
   try {
     const { gameRoomName, username } = req.body;
     if (!gameRoomName)
-      return res.status(400).json({ error: "gameRoomName is required" });
+      return res.status(400).json({ error: 'gameRoomName is required' });
     if (!username)
-      return res.status(400).json({ error: "username is required" });
+      return res.status(400).json({ error: 'username is required' });
     const game = await createGameService(username, gameRoomName);
     res.json(game);
   } catch (err: any) {
@@ -35,7 +35,7 @@ export const joinGame = async (req: Request, res: Response) => {
     const game = await joinGameService(Number(id), username);
     res.status(200).json(game);
   } catch (err: any) {
-    if (err.message === "Game not found") {
+    if (err.message === 'Game not found') {
       return res.status(404).json({ error: err.message });
     }
     res.status(400).json({ error: err.message });
@@ -57,7 +57,7 @@ export const getGame = async (req: Request, res: Response) => {
     const game = await getGameService(Number(id));
     res.status(200).json(game);
   } catch (err: any) {
-    if (err.message === "Game not found")
+    if (err.message === 'Game not found')
       return res.status(404).json({ error: err.message });
     res.status(500).json({ error: err.message });
   }
@@ -69,7 +69,7 @@ export const postFleet = async (req: Request, res: Response) => {
     const { player, ships } = req.body;
 
     if (!player || !ships)
-      return res.status(400).json({ error: "player and ships are required" });
+      return res.status(400).json({ error: 'player and ships are required' });
 
     const savedShips = await postFleetService(Number(id), player, ships);
     res.status(201).json(savedShips);
@@ -97,11 +97,11 @@ export const postShot = async (req: Request, res: Response) => {
     const { id } = req.params;
     const { username, x, y } = req.body;
     if (username === undefined || x === undefined || y === undefined)
-      return res.status(400).json({ error: "username, x and y are required" });
+      return res.status(400).json({ error: 'username, x and y are required' });
     const shot = await postShotService(Number(id), username, x, y);
     res.status(200).json(shot);
   } catch (err: any) {
-    if (err.message === "Game not found")
+    if (err.message === 'Game not found')
       return res.status(404).json({ error: err.message });
     res.status(409).json({ error: err.message });
   }

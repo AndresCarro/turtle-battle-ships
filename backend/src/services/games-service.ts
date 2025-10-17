@@ -1,16 +1,18 @@
 import { Server } from 'socket.io';
-import { AppDataSource } from '../data-source';
-import { Game, GameStatus } from '../entities/Game';
-import { getShipTypeSize, Orientation, Ship, ShipType } from '../entities/Ship';
-import { Shot, ShotSuccess } from '../entities/Shot';
+import { Game, GameStatus } from '../models/Game';
+import { Ship, ShipType, Orientation, getShipTypeSize } from '../models/Ship';
+import { Shot, ShotSuccess } from '../models/Shot';
 import { saveGameReplay } from './game-replay-services';
 import { emitToPlayer } from '../sockets/game-sockets';
-
-const gameRepository = AppDataSource.getRepository(Game);
-const shipRepository = AppDataSource.getRepository(Ship);
-const shotRepository = AppDataSource.getRepository(Shot);
+import { GameRepository } from '../repositories/game-repository';
+import { ShipRepository } from '../repositories/ship-repository';
+import { ShotRepository } from '../repositories/shot-repository';
+import { getGame } from '../controllers/games-controllers';
 
 let socketIOInstance: Server | null = null;
+const gameRepo = new GameRepository();
+const shipRepo = new ShipRepository();
+const shotRepo = new ShotRepository();
 
 export const setSocketIOInstance = (io: Server) => {
   socketIOInstance = io;
@@ -18,8 +20,7 @@ export const setSocketIOInstance = (io: Server) => {
 
 const emitToGameRoom = (gameId: number, event: string, data: any) => {
   if (socketIOInstance) {
-    const roomName = `game-${gameId}`;
-    socketIOInstance.to(roomName).emit(event, data);
+    socketIOInstance.to(`game-${gameId}`).emit(event, data);
   }
 };
 
@@ -27,151 +28,103 @@ export const createGameService = async (
   username: string,
   gameRoomName: string
 ) => {
-  const game = gameRepository.create({ player1: username, name: gameRoomName });
-  return gameRepository.save(game);
+  return gameRepo.createGame(username, gameRoomName);
 };
 
-export const joinGameService = async (id: number, username: string) => {
-  const game = await gameRepository.findOne({ where: { id } });
-  if (!game) throw new Error('Game not found');
-  if (game.player2) throw new Error('Game already has two players');
-
-  game.player2 = username;
-  game.status = GameStatus.SHIPS_SETUP;
-  game.currentTurn = game.player1;
-  const savedGame = await gameRepository.save(game);
-
-  // Emit game state update to all players in the game room
-  emitToGameRoom(id, 'game-state-update', savedGame);
-
-  return savedGame;
-};
-
-export const listGamesService = async () => {
-  return gameRepository.find();
-};
-
-export const getGameService = async (id: number) => {
-  const game = await gameRepository.findOne({
-    where: { id },
-    relations: ['ships', 'shots'],
-  });
-  if (!game) throw new Error('Game not found');
+export const joinGameService = async (gameId: number, username: string) => {
+  const game = await gameRepo.joinGame(gameId, username);
+  emitToGameRoom(gameId, 'game-state-update', game);
   return game;
+};
+
+export const listGamesService = async () => gameRepo.listGames();
+
+export const getGameService = async (gameId: number): Promise<Game> => {
+  const game = await gameRepo.getGame(gameId);
+  if (!game) throw new Error('Game not found');
+
+  const player1Fleet = await shipRepo.getByGameAndPlayer(gameId, game.player1);
+  const player2Fleet = await shipRepo.getByGameAndPlayer(
+    gameId,
+    game.player2 ?? '-'
+  );
+  const shots = await shotRepo.getByGameId(gameId);
+
+  game.shots = shots;
+  game.ships = [...(player1Fleet ?? []), ...(player2Fleet ?? [])];
+
+  return game;
+};
+
+export const getFleetsService = async (
+  gameId: number,
+  player?: string
+): Promise<Ship[]> => {
+  if (!player) {
+    return [];
+  }
+  const ships = await shipRepo.getByGameAndPlayer(gameId, player);
+  return ships ?? [];
+};
+
+export const getShotsService = async (gameId: number) => {
+  return shotRepo.getByGameId(gameId);
 };
 
 export const postFleetService = async (
   gameId: number,
   player: string,
-  shipsInput: {
-    type: ShipType;
-    x: number;
-    y: number;
-    orientation: Orientation;
-  }[]
+  ships: Ship[]
 ): Promise<Ship[]> => {
-  const game = await gameRepository.findOne({
-    where: { id: gameId },
-    relations: ['ships'],
-  });
-  if (!game) throw new Error('Game not found');
-  if (!socketIOInstance) throw new Error('No socket service');
+  const game = await gameRepo.getGame(gameId);
+  const existingFleet = await shipRepo.getByGameAndPlayer(gameId, player);
+  if (existingFleet) throw new Error('Player already placed ships');
 
-  const existingShips = game.ships.filter((s) => s.player === player);
-  if (existingShips.length > 0) throw new Error('Player already placed ships');
-
+  // Validación de cantidades por tipo
   const typeCount: Record<ShipType, number> = {
     [ShipType.CARRIER]: 0,
     [ShipType.BATTLESHIP]: 0,
     [ShipType.SUBMARINE]: 0,
     [ShipType.DESTROYER]: 0,
   };
-
-  for (const s of shipsInput) typeCount[s.type]++;
+  for (const s of ships) typeCount[s.type]++;
   for (const type of Object.keys(typeCount) as ShipType[]) {
-    switch (type) {
-      case ShipType.CARRIER:
-        if (typeCount[type] !== 1) {
-          throw new Error(`Player must place exactly 1 ship of type ${type}`);
-        }
-        break;
-      case ShipType.BATTLESHIP:
-        if (typeCount[type] !== 1) {
-          throw new Error(`Player must place exactly 1 ship of type ${type}`);
-        }
-        break;
-      case ShipType.SUBMARINE:
-        if (typeCount[type] !== 2) {
-          throw new Error(`Player must place exactly 2 ships of type ${type}`);
-        }
-        break;
-      case ShipType.DESTROYER:
-        if (typeCount[type] !== 1) {
-          throw new Error(`Player must place exactly 1 ship of type ${type}`);
-        }
-        break;
-      default:
-        throw new Error(`Incorrect ship type ${type}`);
-    }
+    const required = type === ShipType.SUBMARINE ? 2 : 1;
+    if (typeCount[type] !== required)
+      throw new Error(
+        `Player must place exactly ${required} ship(s) of type ${type}`
+      );
   }
 
-  const ships = shipsInput.map((s) =>
-    shipRepository.create({
-      player,
-      type: s.type,
-      x: s.x,
-      y: s.y,
-      orientation: s.orientation,
-      length: getShipTypeSize(s.type),
-      game: game,
-      gameId: gameId,
-    })
+  await shipRepo.saveAll(gameId, player, ships);
+
+  const allShipsP1 = await shipRepo.getByGameAndPlayer(gameId, game.player1);
+  const allShipsP2 = await shipRepo.getByGameAndPlayer(
+    gameId,
+    game.player2 ?? '-'
+  );
+  if (allShipsP1 && allShipsP2)
+    await gameRepo.updateStatus(gameId, GameStatus.IN_PROGRESS);
+
+  const updatedGame = await gameRepo.getGame(gameId);
+  emitToPlayer(
+    socketIOInstance!,
+    gameId,
+    player,
+    'game-state-update',
+    updatedGame
   );
 
-  const savedShips = await shipRepository.save(ships);
-
-  const allShips = await shipRepository.find({
-    where: { game: { id: gameId } },
-  });
-  const players = Array.from(new Set(allShips.map((s) => s.player)));
-
-  if (players.length === 2) {
-    game.status = GameStatus.IN_PROGRESS;
-    await gameRepository.update(gameId, { status: GameStatus.IN_PROGRESS });
-    const updatedGame = await getGameService(gameId);
-    updatedGame.ships = ships.filter((ship) => ship.player === player);
-    emitToGameRoom(gameId, 'game-state-update', updatedGame);
-  } else {
-    const updatedGame = await getGameService(gameId);
-    updatedGame.ships = ships.filter((ship) => ship.player === player);
-    emitToPlayer(
-      socketIOInstance,
-      gameId,
-      player,
-      'game-state-update',
-      updatedGame
-    );
-  }
-
-  return savedShips;
-};
-
-export const getFleetsService = async (id: number, player?: string) => {
-  const whereClause: any = { game: { id } };
-  if (player) whereClause.player = player;
-  return shipRepository.find({ where: whereClause });
+  return ships;
 };
 
 export const postShotService = async (
-  id: number,
+  gameId: number,
   username: string,
   x: number,
   y: number
 ) => {
-  const game = await gameRepository.findOne({
-    where: { id },
-    relations: ['ships', 'shots'],
-  });
+  const game = await getGameService(gameId);
   if (!game) throw new Error('Game not found');
   if (game.status != GameStatus.IN_PROGRESS)
     throw Error('Game is not in a valid state, it should be in progress.');
@@ -180,58 +133,62 @@ export const postShotService = async (
   }
   if (!socketIOInstance) throw new Error('No socket service available');
 
-  const previousShots = game.shots.filter((shot) => shot.player === username);
-
+  const previousShots = (await shotRepo.getByGameId(gameId)).filter(
+    (shot) => shot.player === username
+  );
   const opponentUsername =
-    game.player1 === username ? game.player2 : game.player1;
-
-  const opponentShips = await getFleetsService(game.id, opponentUsername);
+    game.player1 === username ? game.player2! : game.player1;
+  const opponentFleet = await shipRepo.getByGameAndPlayer(
+    gameId,
+    opponentUsername
+  );
+  if (!opponentFleet) throw new Error('Opponent has not placed ships yet');
 
   let shotSuccess = ShotSuccess.miss;
-
-  for (const ship of opponentShips) {
-    const shipPositions = getShipPositions(ship);
-
-    if (shipPositions.some((pos) => pos.x === x && pos.y === y)) {
+  for (const ship of opponentFleet) {
+    const positions = getShipPositions(ship);
+    if (positions.some((pos) => pos.x === x && pos.y === y)) {
       shotSuccess = hasSunkShip(
-        getShotPositions(previousShots).concat({ x, y }),
-        shipPositions
+        [...getShotPositions(previousShots), { x, y }],
+        positions
       )
         ? ShotSuccess.sunk
         : ShotSuccess.hit;
     }
   }
 
-  const shot = await shotRepository.save(
-    shotRepository.create({
-      player: username,
-      x,
-      y,
-      shotSuccess,
-      game,
-      gameId: game.id,
-    })
+  const shot = new Shot(
+    previousShots.length + 1,
+    gameId,
+    username,
+    x,
+    y,
+    shotSuccess
   );
+  await shotRepo.create(shot);
 
   if (checkIfGameFinished(game, username)) {
-    await gameRepository.update(game.id, {
-      status: GameStatus.FINISHED,
-      winner: username,
-    });
-    const updatedGame = await getGameService(id);
-    emitToGameRoom(id, 'game-finished', {
+    await gameRepo.finishGame(gameId, username);
+    const updatedGame = await getGameService(gameId);
+    emitToGameRoom(gameId, 'game-finished', {
       winner: username,
       game: updatedGame,
     });
-    saveGameReplay(game.id);
-    return shot;
+    saveGameReplay(gameId);
+  } else {
+    const nextTurn = game.player1 === username ? game.player2! : game.player1;
+    await gameRepo.updateTurn(gameId, nextTurn);
+    emitToGameRoom(gameId, 'turn-changed', {
+      currentTurn: nextTurn,
+      previousTurn: username,
+    });
   }
 
   const newCurrentTurn =
     game.player1 === username ? game.player2 : game.player1;
-  await gameRepository.update(game.id, { currentTurn: newCurrentTurn });
-  const updatedGame = await getGameService(id);
-  emitGameStateUpdate(id, updatedGame, socketIOInstance);
+  await gameRepo.updateTurn(game.id, newCurrentTurn ?? '-');
+  const updatedGame = await getGameService(gameId);
+  emitGameStateUpdate(gameId, updatedGame, socketIOInstance);
 
   return shot;
 };
@@ -248,7 +205,32 @@ function emitGameStateUpdate(gameId: number, game: Game, io: Server) {
   emitToPlayer(io, gameId, game.player1, 'game-state-update', game);
 
   game.ships = shipsForPlayerTwo;
-  emitToPlayer(io, gameId, game.player2, 'game-state-update', game);
+  emitToPlayer(io, gameId, game.player2 ?? '-', 'game-state-update', game);
+}
+
+function getShipPositions(ship: Ship): { x: number; y: number }[] {
+  const shipPositions = [];
+  for (let i = 0; i < ship.length; i++) {
+    shipPositions.push(
+      ship.orientation === Orientation.HORIZONTAL
+        ? { x: ship.x + i, y: ship.y }
+        : { x: ship.x, y: ship.y + i }
+    );
+  }
+  return shipPositions;
+}
+
+function hasSunkShip(
+  shots: { x: number; y: number }[],
+  shipPositions: { x: number; y: number }[]
+) {
+  return shipPositions.every((pos) =>
+    shots.some((s) => s.x === pos.x && s.y === pos.y)
+  );
+}
+
+function getShotPositions(shots: Shot[]) {
+  return shots.map((s) => ({ x: s.x, y: s.y }));
 }
 
 function checkIfGameFinished(game: Game, lastShooter: string): boolean {
@@ -281,41 +263,3 @@ function checkIfGameFinished(game: Game, lastShooter: string): boolean {
 
   return false;
 }
-
-function getShipPositions(ship: Ship): { x: number; y: number }[] {
-  const shipPositions = [];
-  for (let i = 0; i < ship.length; i++) {
-    if (ship.orientation === Orientation.HORIZONTAL) {
-      shipPositions.push({ x: ship.x + i, y: ship.y });
-    } else {
-      shipPositions.push({ x: ship.x, y: ship.y + i });
-    }
-  }
-  return shipPositions;
-}
-
-function hasSunkShip(
-  shots: { x: number; y: number }[],
-  shipPositions: { x: number; y: number }[]
-): boolean {
-  for (const shipPosition of shipPositions) {
-    if (
-      !shots.some(
-        (shot) => shipPosition.x === shot.x && shipPosition.y === shot.y
-      )
-    ) {
-      return false;
-    }
-  }
-  return true;
-}
-
-function getShotPositions(shots: Shot[]): { x: number; y: number }[] {
-  return shots.map((shot) => {
-    return { x: shot.x, y: shot.y };
-  });
-}
-
-export const getShotsService = async (id: number) => {
-  return shotRepository.find({ where: { game: { id } } });
-};
