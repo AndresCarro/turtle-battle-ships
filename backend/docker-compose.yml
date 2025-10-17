@@ -46,17 +46,28 @@ services:
       start_period: 10s
     restart: unless-stopped
 
-  bucket-init:
+    bucket-init:
     image: minio/mc:RELEASE.2025-05-21T01-59-54Z
     depends_on:
       - bucket
     entrypoint: ['/bin/sh', '-c']
     command: |
-      "mc alias set myminio http://bucket:9000 ${BUCKET_ACCESS_KEY} ${BUCKET_SECRET_ACCESS_KEY} && \
-      mc mb --ignore-existing myminio/${BUCKET_NAME} && \
-      mc policy set public myminio/${BUCKET_NAME}"
+      "until mc alias set myminio http://bucket:9000 ${BUCKET_ACCESS_KEY} ${BUCKET_SECRET_ACCESS_KEY}; do sleep 1; done && \
+       mc mb --ignore-existing myminio/${BUCKET_NAME} && \
+       mc policy set public myminio/${BUCKET_NAME}"
     restart: on-failure
+
+  dynamo:
+    image: amazon/dynamodb-local:latest
+    container_name: dynamodb-local
+    ports:
+      - '127.0.0.1:${DYNAMO_PORT:-8000}:8000'
+    command: '-jar DynamoDBLocal.jar -sharedDb -dbPath /home/dynamodblocal/data'
+    volumes:
+      - ./dynamo_data:/home/dynamodblocal/data
+    restart: unless-stopped
 
 volumes:
   postgres_data:
   bucket_data:
+  dynamo_data:

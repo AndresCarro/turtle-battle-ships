@@ -1,19 +1,15 @@
-import { PutObjectCommand } from "@aws-sdk/client-s3";
-import { randomUUID } from "crypto";
-import { s3 } from "../data-s3-client";
-import { AppDataSource } from "../data-source";
-import { Game } from "../entities/Game";
-import { GameReplay } from "../entities/game-replay";
+import { PutObjectCommand } from '@aws-sdk/client-s3';
+import { randomUUID } from 'crypto';
+import { s3 } from '../data-s3-client';
+import { GameReplayPostgres } from '../entities/postgres/GameReplay';
+import { GameReplayRepository } from '../repositories/game-replay-repository';
+import { GamePostgres } from '../entities/postgres/Game';
+import { getGameService } from './games-service';
 
-const replayRepository = AppDataSource.getRepository(GameReplay);
-const gameRepository = AppDataSource.getRepository(Game);
+const replayRepo = new GameReplayRepository();
 
 export const saveGameReplay = async (gameId: number) => {
-  const game = await gameRepository.findOne({
-    where: { id: gameId },
-    relations: ["ships", "shots"],
-  });
-
+  const game = await getGameService(gameId);
   if (!game) throw new Error(`Game ${gameId} no encontrado`);
 
   const gameJson = JSON.stringify(game, null, 2);
@@ -21,19 +17,18 @@ export const saveGameReplay = async (gameId: number) => {
 
   await s3.send(
     new PutObjectCommand({
-      Bucket: "game-replays",
+      Bucket: 'game-replays',
       Key: fileKey,
       Body: gameJson,
-      ContentType: "application/json",
+      ContentType: 'application/json',
     })
   );
 
-  const replay = replayRepository.create({
-    game: game,
-    s3Key: fileKey,
-  });
+  const replayEntity = new GameReplayPostgres();
+  replayEntity.game = GamePostgres.fromDomain(game);
+  replayEntity.s3Key = fileKey;
 
-  await replayRepository.save(replay);
+  const replay = await replayRepo.save(replayEntity);
 
   return replay;
 };
