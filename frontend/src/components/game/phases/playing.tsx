@@ -1,9 +1,10 @@
 import { canMakeMove } from '@/domain/playing';
 import { Board } from '../board';
 import { BaseComponent } from './base';
-import type { Board as BoardType, GameRoom } from '@/types';
+import type { Board as BoardType, GameRoom, Message } from '@/types';
 
 type Props = {
+  messages: Message[];
   gameState: GameRoom | null;
   room: GameRoom;
   playerBoard: BoardType;
@@ -14,6 +15,7 @@ type Props = {
 };
 
 export function Playing({
+  messages,
   gameState,
   room,
   playerBoard,
@@ -28,7 +30,7 @@ export function Playing({
   }
 
   return (
-    <BaseComponent gameState={gameState}>
+    <BaseComponent gameState={gameState} messages={messages}>
       <div className="p-4 mb-4 border border-dashed border-border rounded-lg text-center space-y-4">
         <h1 className="text-2xl font-bold grow">
           {isPlayerTurn

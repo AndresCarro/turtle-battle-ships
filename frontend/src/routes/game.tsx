@@ -39,7 +39,7 @@ function RouteComponent() {
       .map(() => Array(GRID_SIZE).fill(''))
   );
 
-  const { gameState, postFleet, makeShot } = useGameWebSocket({
+  const { gameState, postFleet, makeShot, messages } = useGameWebSocket({
     gameId: gameRoom.id,
     username: player.name,
     autoConnect: true,
@@ -99,6 +99,7 @@ function RouteComponent() {
   ) {
     return (
       <PlacingShips
+        messages={messages}
         gameState={gameState}
         room={gameRoom}
         board={playerBoard}
@@ -110,12 +111,13 @@ function RouteComponent() {
   }
 
   if (phase === GameRoomStatuses.SHIPS_SETUP) {
-    return <WaitingOpponentPlacingShips board={playerBoard} gameState={gameState} />;
+    return <WaitingOpponentPlacingShips board={playerBoard} gameState={gameState} messages={messages}/>;
   }
 
   if (phase === GameRoomStatuses.IN_PROGRESS) {
     return (
       <Playing
+        messages={messages}
         gameState={gameState}
         room={gameRoom}
         playerBoard={playerBoard}
@@ -130,6 +132,7 @@ function RouteComponent() {
   if (phase === GameRoomStatuses.FINISHED) {
     return (
       <GameOver
+        messages={messages}
         gameState={gameState}
         playerBoard={playerBoard}
         opponentBoard={opponentBoard}

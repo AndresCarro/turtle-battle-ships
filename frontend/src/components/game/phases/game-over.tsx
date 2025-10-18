@@ -1,12 +1,13 @@
 import { Button } from '@/components/ui/button';
 import { Board } from '../board';
 import { BaseComponent } from './base';
-import type { Board as BoardType, GameRoom } from '@/types';
+import type { Board as BoardType, GameRoom, Message } from '@/types';
 import { useNavigate } from '@tanstack/react-router';
 import { useMainStore } from '@/store/main-store';
 import { useGameWebSocket } from '@/hooks/use-game-websocket';
 
 type Props = {
+  messages: Message[];
   gameState: GameRoom | null;
   playerBoard: BoardType;
   opponentBoard: BoardType;
@@ -14,6 +15,7 @@ type Props = {
 };
 
 export function GameOver({
+  messages,
   gameState,
   playerBoard,
   opponentBoard,
@@ -30,7 +32,7 @@ export function GameOver({
   }
 
   return (
-    <BaseComponent gameState={gameState}>
+    <BaseComponent gameState={gameState} messages={messages}>
       <div className="p-4 mb-4 border border-dashed border-border rounded-lg text-center space-y-4">
         <h1 className="text-2xl font-bold grow">
           {playerWon ? 'Congratulations! You won!' : 'Game Over! You lost.'}

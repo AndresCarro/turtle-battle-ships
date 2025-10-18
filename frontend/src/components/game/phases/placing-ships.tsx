@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label';
 import type {
   Board as BoardType,
   GameRoom,
+  Message,
   Player,
   ShipForCreation,
 } from '@/types';
@@ -15,6 +16,7 @@ import { placeShip, getShipName } from '@/domain/placing-ships';
 import { cn } from '@/utils/ui';
 
 export function PlacingShips({
+  messages,
   gameState,
   room,
   board,
@@ -22,6 +24,7 @@ export function PlacingShips({
   submitFleet,
   player,
 }: {
+  messages: Message[];
   gameState: GameRoom | null;
   room: GameRoom;
   board: BoardType;
@@ -64,7 +67,7 @@ export function PlacingShips({
   };
 
   return (
-    <BaseComponent gameState={gameState}>
+    <BaseComponent gameState={gameState} messages={messages}>
       <div className="p-4 mb-4 border border-dashed border-border rounded-lg text-center space-y-4">
         <h1 className="text-2xl font-bold grow">
           Let's start by placing your fleet...

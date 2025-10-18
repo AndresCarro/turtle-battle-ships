@@ -6,18 +6,20 @@ import { useMemo, useState } from 'react';
 import { Chat } from '../chat';
 import { useMainStore } from '@/store/main-store';
 import { useGameWebSocket } from '@/hooks/use-game-websocket';
-import type { GameRoom } from '@/types';
+import type { GameRoom, Message } from '@/types';
 
 export function BaseComponent({
+  messages,
   gameState,
   children
 }: {
+  messages: Message[];
   gameState: GameRoom | null;
   children: React.ReactNode;
 }) {
   const playerUsername = useMainStore((state) => state.player!.name);
   const [showChat, setShowChat] = useState(false);
-  const { messages, sendMessage } = useGameWebSocket({ username: playerUsername });
+  const { sendMessage } = useGameWebSocket({ username: playerUsername });
   const [player, opponent] = useMemo(() => {
     if (gameState?.player1 === playerUsername) {
       return [gameState.player1, gameState.player2];
