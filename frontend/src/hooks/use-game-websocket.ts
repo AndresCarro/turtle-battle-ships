@@ -135,6 +135,7 @@ export const useGameWebSocket = (
 
   const sendMessage = useCallback((message: string) => {
     gameWebSocketService.sendMessage(message);
+    setMessages((prev) => [...prev, { id: Math.random().toString(36).substring(2, 9), sender: username || 'you', content: message, timestamp: new Date().toISOString() }]);
   }, []);
 
   // Event listener management
@@ -161,8 +162,8 @@ export const useGameWebSocket = (
   // Setup event handlers
   useEffect(() => {
     const handleGameStateUpdate = (data: GameRoom) => {
-      setGameState(data);
       console.log('🔄 Game state updated:', data);
+      setGameState({...data});
     };
 
     const handlePlayerConnected = (data: { username: string }) => {
@@ -174,6 +175,7 @@ export const useGameWebSocket = (
     };
 
     const handleMessageReceived = (data: Message) => {
+      console.log('💬 Message received:', data);
       setMessages((prev) => [...prev, data]);
     };
 

@@ -43,8 +43,8 @@ export type GameRoom = {
   currentTurn: string;
   winner: string;
   creationTimestamp: Date; // ISO format
-  player1: Player | null;
-  player2: Player | null;
+  player1: string | null;
+  player2: string | null;
   ships?: Ship[];
   shots?: Shot[];
 };
@@ -53,7 +53,7 @@ export type Message = {
   id: string;
   sender: string;
   content: string;
-  timestamp: Date;
+  timestamp: string;
 };
 
 export type CellState = '' | 'miss' | 'hit' | 'ship' | 'sunk';

@@ -4,26 +4,26 @@ import { cn } from '@/utils/ui';
 import { MessageCircleMore, MessageCircleOff } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Chat } from '../chat';
-import type { GameRoom } from '@/types';
 import { useMainStore } from '@/store/main-store';
 import { useGameWebSocket } from '@/hooks/use-game-websocket';
+import type { GameRoom } from '@/types';
 
 export function BaseComponent({
-  room,
-  children,
+  gameState,
+  children
 }: {
-  room: GameRoom;
+  gameState: GameRoom | null;
   children: React.ReactNode;
 }) {
-  const [showChat, setShowChat] = useState(false);
-  const { messages, sendMessage } = useGameWebSocket();
   const playerUsername = useMainStore((state) => state.player!.name);
+  const [showChat, setShowChat] = useState(false);
+  const { messages, sendMessage } = useGameWebSocket({ username: playerUsername });
   const [player, opponent] = useMemo(() => {
-    if (room.player1?.name === playerUsername) {
-      return [room.player1, room.player2];
+    if (gameState?.player1 === playerUsername) {
+      return [gameState.player1, gameState.player2];
     }
-    return [room.player2, room.player1];
-  }, [room]);
+    return [gameState?.player2, gameState?.player1];
+  }, [gameState, playerUsername]);
 
   async function handleSendMessage(message: string) {
     sendMessage(message);
@@ -59,8 +59,8 @@ export function BaseComponent({
         <Card className="w-full py-0 gap-0 overflow-y-auto">
           <Chat
             messages={messages}
-            playerUsername={player.name}
-            opponentUsername={opponent.name}
+            playerUsername={player}
+            opponentUsername={opponent}
             handleSendMessage={handleSendMessage}
           />
         </Card>

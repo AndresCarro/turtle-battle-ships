@@ -4,6 +4,7 @@ import { BaseComponent } from './base';
 import type { Board as BoardType, GameRoom } from '@/types';
 
 type Props = {
+  gameState: GameRoom | null;
   room: GameRoom;
   playerBoard: BoardType;
   username: string;
@@ -13,6 +14,7 @@ type Props = {
 };
 
 export function Playing({
+  gameState,
   room,
   playerBoard,
   username,
@@ -26,7 +28,7 @@ export function Playing({
   }
 
   return (
-    <BaseComponent room={room}>
+    <BaseComponent gameState={gameState}>
       <div className="p-4 mb-4 border border-dashed border-border rounded-lg text-center space-y-4">
         <h1 className="text-2xl font-bold grow">
           {isPlayerTurn

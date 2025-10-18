@@ -99,6 +99,7 @@ function RouteComponent() {
   ) {
     return (
       <PlacingShips
+        gameState={gameState}
         room={gameRoom}
         board={playerBoard}
         setBoard={setPlayerBoard}
@@ -109,12 +110,13 @@ function RouteComponent() {
   }
 
   if (phase === GameRoomStatuses.SHIPS_SETUP) {
-    return <WaitingOpponentPlacingShips room={gameRoom} board={playerBoard} />;
+    return <WaitingOpponentPlacingShips board={playerBoard} gameState={gameState} />;
   }
 
   if (phase === GameRoomStatuses.IN_PROGRESS) {
     return (
       <Playing
+        gameState={gameState}
         room={gameRoom}
         playerBoard={playerBoard}
         opponentBoard={opponentBoard}
@@ -128,7 +130,7 @@ function RouteComponent() {
   if (phase === GameRoomStatuses.FINISHED) {
     return (
       <GameOver
-        room={gameRoom}
+        gameState={gameState}
         playerBoard={playerBoard}
         opponentBoard={opponentBoard}
         playerWon={gameState.winner === player.name}

@@ -2,9 +2,9 @@ import { Board } from "../board";
 import { BaseComponent } from "./base";
 import type { Board as BoardType, GameRoom } from "@/types";
 
-export function WaitingOpponentPlacingShips({ room, board }: { room: GameRoom, board: BoardType }) {
+export function WaitingOpponentPlacingShips({ board, gameState }: { board: BoardType, gameState: GameRoom | null }) {
     return (
-        <BaseComponent room={room}>
+        <BaseComponent gameState={gameState}>
             <div className="p-4 mb-4 border border-dashed border-border rounded-lg text-center space-y-4">
                 <h1 className="text-2xl font-bold grow">Waiting for the opponent...</h1>
             </div>

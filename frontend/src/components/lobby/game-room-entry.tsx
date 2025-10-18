@@ -62,9 +62,9 @@ export function GameRoomEntry({ room }: { room: GameRoom }) {
           Created at: {room.creationTimestamp.toLocaleString()}
         </span>
         <div className="flex items-center gap-2 pt-0.5">
-          <Badge variant="secondary">{room.player1?.name ?? '???'}</Badge>
+          <Badge variant="secondary">{room.player1 ?? '???'}</Badge>
           <span className="text-xs text-muted-foreground">vs</span>
-          <Badge variant="secondary">{room.player2?.name ?? '???'}</Badge>
+          <Badge variant="secondary">{room.player2 ?? '???'}</Badge>
         </div>
       </div>
 

@@ -1,5 +1,5 @@
-export function formatTime(date: Date) {
-    return date.toLocaleTimeString("en-US", {
+export function formatTime(date: string) {
+    return new Date(date).toLocaleTimeString("en-US", {
         hour: "numeric",
         minute: "2-digit",
         hour12: true,

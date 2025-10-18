@@ -15,12 +15,14 @@ import { placeShip, getShipName } from '@/domain/placing-ships';
 import { cn } from '@/utils/ui';
 
 export function PlacingShips({
+  gameState,
   room,
   board,
   setBoard,
   submitFleet,
   player,
 }: {
+  gameState: GameRoom | null;
   room: GameRoom;
   board: BoardType;
   setBoard: (board: BoardType) => void;
@@ -62,7 +64,7 @@ export function PlacingShips({
   };
 
   return (
-    <BaseComponent room={room}>
+    <BaseComponent gameState={gameState}>
       <div className="p-4 mb-4 border border-dashed border-border rounded-lg text-center space-y-4">
         <h1 className="text-2xl font-bold grow">
           Let's start by placing your fleet...

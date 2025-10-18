@@ -7,14 +7,14 @@ import { useMainStore } from '@/store/main-store';
 import { useGameWebSocket } from '@/hooks/use-game-websocket';
 
 type Props = {
-  room: GameRoom;
+  gameState: GameRoom | null;
   playerBoard: BoardType;
   opponentBoard: BoardType;
   playerWon: boolean;
 };
 
 export function GameOver({
-  room,
+  gameState,
   playerBoard,
   opponentBoard,
   playerWon,
@@ -30,7 +30,7 @@ export function GameOver({
   }
 
   return (
-    <BaseComponent room={room}>
+    <BaseComponent gameState={gameState}>
       <div className="p-4 mb-4 border border-dashed border-border rounded-lg text-center space-y-4">
         <h1 className="text-2xl font-bold grow">
           {playerWon ? 'Congratulations! You won!' : 'Game Over! You lost.'}
