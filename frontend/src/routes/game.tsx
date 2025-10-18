@@ -131,7 +131,7 @@ function RouteComponent() {
         room={gameRoom}
         playerBoard={playerBoard}
         opponentBoard={opponentBoard}
-        playerWon={true}
+        playerWon={gameState.winner === player.name}
       />
     );
   }
