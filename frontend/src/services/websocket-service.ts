@@ -85,7 +85,6 @@ export class GameWebSocketService {
       this.socket = null;
     }
     this.gameId = null;
-    this.username = null;
     this.connectionPromise = null;
   }
 
