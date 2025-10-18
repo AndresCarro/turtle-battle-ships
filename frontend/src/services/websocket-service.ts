@@ -1,4 +1,4 @@
-import type { Message, ShipForCreation, Shot } from '@/types';
+import type { Message, ShipForCreation } from '@/types';
 import { io, Socket } from 'socket.io-client';
 
 export interface GameWebSocketEvents {
