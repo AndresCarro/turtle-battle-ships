@@ -13,22 +13,45 @@ export function GameRoomEntry({ room }: { room: GameRoom }) {
   const player = useMainStore((state) => state.player)!;
 
   async function handleJoinRoom() {
-    const gameRoom = await GameRoomService.joinGameRoom(room.id, player.name);
-    if (!gameRoom) {
-      alert('Failed to create user. Please try again.');
-      return;
+    try {
+      const gameRoom = await GameRoomService.joinGameRoom(room.id, player.name);
+      if (!gameRoom) {
+        alert('Failed to join room. Please try again.');
+        return;
+      }
+
+      setGameRoomInStore({
+        id: gameRoom.id,
+        name: gameRoom.name,
+        creationTimestamp: gameRoom.creationTimestamp,
+        currentTurn: gameRoom.currentTurn,
+        player1: gameRoom.player1,
+        player2: gameRoom.player2,
+        status: gameRoom.status,
+        winner: gameRoom.winner,
+      });
+
+      navigate({ to: '/game' });
+    } catch (err) {
+      console.error(err);
+      alert('Ocurrió un error al unirse a la partida.');
     }
-    setGameRoomInStore({
-      id: gameRoom.id,
-      name: gameRoom.name,
-      creationTimestamp: gameRoom.creationTimestamp,
-      currentTurn: gameRoom.currentTurn,
-      player1: gameRoom.player1,
-      player2: gameRoom.player2,
-      status: gameRoom.status,
-      winner: gameRoom.winner,
-    });
-    navigate({ to: '/game' });
+  }
+
+  async function handleNavigateToReplay() {
+    try {
+      const replayUrl = await GameRoomService.getReplay(room.id);
+
+      // Abrir la URL externa reemplazando toda la ventana
+      window.location.href = replayUrl;
+    } catch (err: any) {
+      if (err?.statusCode === 404) {
+        alert('Replay no encontrado para esta partida.');
+      } else {
+        console.error(err);
+        alert('Ocurrió un error al obtener el replay.');
+      }
+    }
   }
 
   return (
@@ -44,6 +67,7 @@ export function GameRoomEntry({ room }: { room: GameRoom }) {
           <Badge variant="secondary">{room.player2?.name ?? '???'}</Badge>
         </div>
       </div>
+
       {room.status === GameRoomStatuses.WAITING_FOR_PLAYER && (
         <Button
           size="sm"
@@ -54,11 +78,13 @@ export function GameRoomEntry({ room }: { room: GameRoom }) {
           Join Room
         </Button>
       )}
+
       {room.status === GameRoomStatuses.FINISHED && (
         <Button
           size="sm"
           variant="outline"
           className="cursor-pointer w-full @md:w-auto"
+          onClick={handleNavigateToReplay}
         >
           <Clapperboard className="size-4" />
           See Replay

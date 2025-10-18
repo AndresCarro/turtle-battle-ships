@@ -32,3 +32,14 @@ export const saveGameReplay = async (gameId: number) => {
 
   return replay;
 };
+
+export const getGameReplay = async (gameId: number) => {
+  const gameReplayObject: GameReplayPostgres | null =
+    await replayRepo.getByGameId(gameId);
+
+  if (!gameReplayObject || !gameReplayObject.s3Key)
+    throw new Error(`Game ${gameId} no encontrado`);
+
+  const objectUrl = `${process.env.BUCKET_ENDPOINT}/${REPLAYS_BUCKET_NAME}/${gameReplayObject.s3Key}`;
+  return objectUrl;
+};

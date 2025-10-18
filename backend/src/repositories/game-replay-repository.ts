@@ -8,8 +8,13 @@ export class GameReplayRepository {
     return this.repo.save(replay);
   }
 
-  async getById(id: number): Promise<GameReplayPostgres | null> {
-    return this.repo.findOne({ where: { id } });
+  async getByGameId(gameId: number): Promise<GameReplayPostgres | null> {
+    return this.repo.findOne({
+      where: {
+        game: { id: gameId },
+      },
+      relations: ['game'],
+    });
   }
 
   async listAll(): Promise<GameReplayPostgres[]> {
