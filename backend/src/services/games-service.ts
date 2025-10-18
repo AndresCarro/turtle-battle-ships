@@ -1,7 +1,14 @@
 import { Server } from 'socket.io';
-import { Game, GameStatus } from '../models/Game';
-import { Ship, ShipType, Orientation, getShipTypeSize } from '../models/Ship';
-import { Shot, ShotSuccess } from '../models/Shot';
+import { AppDataSource } from '../data-source';
+import { Game, GameStatus } from '../entities/Game';
+import {
+  AMOUNT_SHOTS_REQUIERED_TO_WIN,
+  getShipTypeSize,
+  Orientation,
+  Ship,
+  ShipType,
+} from '../entities/Ship';
+import { Shot, ShotSuccess } from '../entities/Shot';
 import { saveGameReplay } from './game-replay-services';
 import { emitToPlayer } from '../sockets/game-sockets';
 import { GameRepository } from '../repositories/game-repository';
@@ -87,19 +94,6 @@ export const postFleetService = async (
     [ShipType.DESTROYER]: 0,
   };
 
-  for (const ship of shipsInput) {
-    console.log(
-      'SHIPS SUBMITTED x: ' +
-        ship.x +
-        ' y: ' +
-        ship.y +
-        ' type: ' +
-        ship.type +
-        ' orientation: ' +
-        ship.orientation
-    );
-  }
-
   for (const s of shipsInput) typeCount[s.type]++;
   for (const type of Object.keys(typeCount) as ShipType[]) {
     const required = type === ShipType.SUBMARINE ? 2 : 1;
@@ -128,7 +122,51 @@ export const postFleetService = async (
     updatedGame
   );
 
-  return ships;
+  const savedShips = await shipRepository.save(ships);
+
+  for (const ship of shipsInput) {
+    console.log(
+      'SHIPS SUBMITTED x: ' +
+        ship.x +
+        ' y: ' +
+        ship.y +
+        ' type: ' +
+        ship.type +
+        ' orientation: ' +
+        ship.orientation
+    );
+  }
+
+  const allShips = await shipRepository.find({
+    where: { game: { id: gameId } },
+  });
+  const players = Array.from(new Set(allShips.map((s) => s.player)));
+
+  if (players.length === 2) {
+    game.status = GameStatus.IN_PROGRESS;
+    await gameRepository.update(gameId, { status: GameStatus.IN_PROGRESS });
+    const updatedGame = await getGameService(gameId);
+    updatedGame.ships = ships.filter((ship) => ship.player === player);
+    emitToGameRoom(gameId, 'game-state-update', updatedGame);
+  } else {
+    const updatedGame = await getGameService(gameId);
+    updatedGame.ships = ships.filter((ship) => ship.player === player);
+    emitToPlayer(
+      socketIOInstance,
+      gameId,
+      player,
+      'game-state-update',
+      updatedGame
+    );
+  }
+
+  return savedShips;
+};
+
+export const getFleetsService = async (id: number, player?: string) => {
+  const whereClause: any = { game: { id } };
+  if (player) whereClause.player = player;
+  return shipRepository.find({ where: whereClause });
 };
 
 export const postShotService = async (
@@ -205,10 +243,19 @@ export const postShotService = async (
       shotSuccess
   );
 
-  if (checkIfGameFinished(game, username)) {
-    await gameRepo.finishGame(gameId, username);
-    const updatedGame = await getGameService(gameId);
-    emitToGameRoom(gameId, 'game-finished', {
+  const newCurrentTurn =
+    game.player1 === username ? game.player2 : game.player1;
+  await gameRepository.update(game.id, { currentTurn: newCurrentTurn });
+  const updatedGame = await getGameService(id);
+  emitGameStateUpdate(id, updatedGame, socketIOInstance);
+
+  if (await checkIfGameFinished(updatedGame, username)) {
+    await gameRepository.update(game.id, {
+      status: GameStatus.FINISHED,
+      winner: username,
+    });
+    const updatedGame = await getGameService(id);
+    emitToGameRoom(id, 'game-finished', {
       winner: username,
       game: updatedGame,
     });
@@ -221,12 +268,6 @@ export const postShotService = async (
       previousTurn: username,
     });
   }
-
-  const newCurrentTurn =
-    game.player1 === username ? game.player2 : game.player1;
-  await gameRepo.updateTurn(game.id, newCurrentTurn ?? '-');
-  const updatedGame = await getGameService(gameId);
-  emitGameStateUpdate(gameId, updatedGame, socketIOInstance);
 
   return shot;
 };
@@ -280,15 +321,22 @@ function getShotPositions(shots: Shot[]) {
   return shots.map((s) => ({ x: s.x, y: s.y }));
 }
 
-function checkIfGameFinished(game: Game, lastShooter: string): boolean {
+async function checkIfGameFinished(
+  game: Game,
+  lastShooter: string
+): Promise<boolean> {
   const opponentShips = game.ships.filter((s) => s.player !== lastShooter);
 
-  const hits = game.shots.filter(
+  const sinkingShots = game.shots.filter(
     (shot) =>
-      shot.player === lastShooter && shot.shotSuccess === ShotSuccess.hit
+      shot.player === lastShooter && shot.shotSuccess === ShotSuccess.sunk
   );
 
-  const allPositions = opponentShips.flatMap((ship) => {
+  if (sinkingShots.length !== AMOUNT_SHOTS_REQUIERED_TO_WIN) {
+    return false;
+  }
+
+  const allOpponentShipPositions = opponentShips.flatMap((ship) => {
     const positions = [];
     for (let i = 0; i < ship.length; i++) {
       if (ship.orientation === Orientation.HORIZONTAL) {
@@ -300,13 +348,13 @@ function checkIfGameFinished(game: Game, lastShooter: string): boolean {
     return positions;
   });
 
-  const allSunk = allPositions.every((pos) =>
-    hits.some((s) => s.x === pos.x && s.y === pos.y)
+  const allSunk = allOpponentShipPositions.every((pos) =>
+    sinkingShots.some((s) => s.x === pos.x && s.y === pos.y)
   );
 
-  if (allSunk) {
-    return true;
+  if (!allSunk) {
+    return false;
   }
 
-  return false;
+  return true;
 }
