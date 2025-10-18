@@ -1,0 +1,46 @@
+# ============================
+# Terraform
+# ============================
+
+# Archivos de estado
+*.tfstate
+*.tfstate.*
+
+# Archivos de respaldo de estado
+crash.log
+
+# Archivos de lock
+.terraform.lock.hcl
+
+# Carpetas locales de Terraform
+.terraform/
+
+# ============================
+# Credenciales y configuración local
+# ============================
+
+# Archivos de entorno
+.env
+.env.*
+
+# Archivos con credenciales temporales
+aws-credentials
+
+# Archivos generados por AWS CLI
+*.pem
+
+# ============================
+# Editor / OS
+# ============================
+
+# macOS
+.DS_Store
+
+# VSCode
+.vscode/
+
+# Logs
+*.log
+
+# Backups
+*~
