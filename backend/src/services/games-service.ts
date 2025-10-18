@@ -7,7 +7,6 @@ import { emitToPlayer } from '../sockets/game-sockets';
 import { GameRepository } from '../repositories/game-repository';
 import { ShipRepository } from '../repositories/ship-repository';
 import { ShotRepository } from '../repositories/shot-repository';
-import { getGame } from '../controllers/games-controllers';
 
 let socketIOInstance: Server | null = null;
 const gameRepo = new GameRepository();
@@ -87,7 +86,21 @@ export const postFleetService = async (
     [ShipType.SUBMARINE]: 0,
     [ShipType.DESTROYER]: 0,
   };
-  for (const s of ships) typeCount[s.type]++;
+
+  for (const ship of shipsInput) {
+    console.log(
+      'SHIPS SUBMITTED x: ' +
+        ship.x +
+        ' y: ' +
+        ship.y +
+        ' type: ' +
+        ship.type +
+        ' orientation: ' +
+        ship.orientation
+    );
+  }
+
+  for (const s of shipsInput) typeCount[s.type]++;
   for (const type of Object.keys(typeCount) as ShipType[]) {
     const required = type === ShipType.SUBMARINE ? 2 : 1;
     if (typeCount[type] !== required)
@@ -145,15 +158,29 @@ export const postShotService = async (
   if (!opponentFleet) throw new Error('Opponent has not placed ships yet');
 
   let shotSuccess = ShotSuccess.miss;
-  for (const ship of opponentFleet) {
-    const positions = getShipPositions(ship);
-    if (positions.some((pos) => pos.x === x && pos.y === y)) {
+
+  for (const ship of opponentShips) {
+    const shipPositions = getShipPositions(ship);
+    if (shipPositions.some((pos) => pos.x === x && pos.y === y)) {
       shotSuccess = hasSunkShip(
         [...getShotPositions(previousShots), { x, y }],
         positions
       )
         ? ShotSuccess.sunk
         : ShotSuccess.hit;
+
+      if (shotSuccess === ShotSuccess.sunk) {
+        // If the new shot sunk the ship,
+        // we have to change all the shot's Successes related to that sunken ship
+        const sinkingShotsForShip = previousShots.filter((shot) =>
+          shotHasSunkShip(shot, shipPositions)
+        );
+        for (const shot of sinkingShotsForShip) {
+          await shotRepository.update(shot.id, {
+            shotSuccess: ShotSuccess.sunk,
+          });
+        }
+      }
     }
   }
 
@@ -166,6 +193,17 @@ export const postShotService = async (
     shotSuccess
   );
   await shotRepo.create(shot);
+
+  console.log(
+    'Player ' +
+      username +
+      ' shot x:' +
+      x +
+      ' y: ' +
+      y +
+      ' shotSuccess: ' +
+      shotSuccess
+  );
 
   if (checkIfGameFinished(game, username)) {
     await gameRepo.finishGame(gameId, username);
@@ -192,6 +230,15 @@ export const postShotService = async (
 
   return shot;
 };
+
+function shotHasSunkShip(
+  shot: Shot,
+  shipPositions: { x: number; y: number }[]
+): boolean {
+  return shipPositions.some(
+    (shipPosition) => shot.x === shipPosition.x && shot.y === shipPosition.y
+  );
+}
 
 function emitGameStateUpdate(gameId: number, game: Game, io: Server) {
   const shipsForPlayerOne = game.ships.filter(
