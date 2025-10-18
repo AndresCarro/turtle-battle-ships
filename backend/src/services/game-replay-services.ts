@@ -1,6 +1,6 @@
 import { PutObjectCommand } from '@aws-sdk/client-s3';
 import { randomUUID } from 'crypto';
-import { s3 } from '../data-s3-client';
+import { REPLAYS_BUCKET_NAME, s3 } from '../data-s3-client';
 import { GameReplayPostgres } from '../entities/postgres/GameReplay';
 import { GameReplayRepository } from '../repositories/game-replay-repository';
 import { GamePostgres } from '../entities/postgres/Game';
@@ -17,7 +17,7 @@ export const saveGameReplay = async (gameId: number) => {
 
   await s3.send(
     new PutObjectCommand({
-      Bucket: 'game-replays',
+      Bucket: REPLAYS_BUCKET_NAME,
       Key: fileKey,
       Body: gameJson,
       ContentType: 'application/json',
