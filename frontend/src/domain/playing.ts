@@ -30,7 +30,7 @@ function placeShot(
 export function placeShotsOnBoard(board: Board, shots: Shot[]): Board {
   let newBoard = board;
   shots.forEach((shot) => {
-    newBoard = placeShot(newBoard, shot.x, shot.y, shot.shotSuccess);
+    newBoard = placeShot(newBoard, shot.y, shot.x, shot.shotSuccess);
   });
   return newBoard;
 }
@@ -43,7 +43,7 @@ export function boardsAreUpToDate(
 ): boolean {
   for (const playerShot of playerShots) {
     if (
-      opponentBoard[playerShot.x][playerShot.y] !==
+      opponentBoard[playerShot.y][playerShot.x] !==
       shotSuccessMap.get(playerShot.shotSuccess)
     ) {
       return false;
@@ -52,7 +52,7 @@ export function boardsAreUpToDate(
 
   for (const opponentShot of opponentShots) {
     if (
-      playerBoard[opponentShot.x][opponentShot.y] !==
+      playerBoard[opponentShot.y][opponentShot.x] !==
       shotSuccessMap.get(opponentShot.shotSuccess)
     ) {
       return false;

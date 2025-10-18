@@ -22,7 +22,7 @@ export function Playing({
 }: Props) {
   function handleCellClick(i: number, j: number) {
     if (!isPlayerTurn || !canMakeMove(opponentBoard, i, j)) return;
-    submitMove(room.id, username, i, j);
+    submitMove(room.id, username, j, i);
   }
 
   return (

@@ -52,8 +52,8 @@ export function PlacingShips({
         ...shipsToSend,
         {
           type: getShipName(selectedShip).toUpperCase(),
-          x: i,
-          y: j,
+          x: j,
+          y: i,
           orientation: orientation.toUpperCase(),
         },
       ]);
