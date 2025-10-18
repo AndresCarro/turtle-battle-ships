@@ -3,11 +3,11 @@ import {
   APIGatewayProxyResult,
   Context,
 } from "aws-lambda";
-import { CreateUserRequest, CreateUserResponse } from "./types";
-import { createUser } from "./db";
+import { CreateGameRoomRequest } from "./types";
+import { createGameRoom } from "./db";
 
 /**
- * Lambda handler function to create a new user
+ * Lambda handler function to create game room
  */
 export const handler = async (
   event: APIGatewayProxyEvent,
@@ -28,24 +28,10 @@ export const handler = async (
       };
     }
 
-    const requestBody: CreateUserRequest = JSON.parse(event.body);
+    const gameRoomToCreate: CreateGameRoomRequest = JSON.parse(event.body);
 
-    // Validate required fields
-    if (!requestBody.username) {
-      return {
-        statusCode: 400,
-        headers: {
-          "Content-Type": "application/json",
-          "Access-Control-Allow-Origin": "*",
-        },
-        body: JSON.stringify({
-          error: "Username is required",
-        }),
-      };
-    }
-
-    const user = await createUser(requestBody.username);
-    console.log("User created successfully:", user);
+    const game = await createGameRoom(gameRoomToCreate);
+    console.log("Created game successfully:", game);
 
     return {
       statusCode: 201,
@@ -53,7 +39,7 @@ export const handler = async (
         "Content-Type": "application/json",
         "Access-Control-Allow-Origin": "*",
       },
-      body: JSON.stringify(user),
+      body: JSON.stringify(game),
     };
   } catch (error) {
     console.error("Error creating user:", error);
