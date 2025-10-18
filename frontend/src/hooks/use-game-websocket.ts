@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { gameWebSocketService } from '@/services/websocket-service';
 import type { GameWebSocketEvents } from '@/services/websocket-service';
-import type { GameRoom, Message, ShipForCreation, Shot } from '@/types';
+import type { GameRoom, Message, ShipForCreation } from '@/types';
 
 export interface UseGameWebSocketOptions {
   gameId?: number;
