@@ -1,7 +1,7 @@
 export enum ShotSuccess {
-  miss = 'miss',
-  hit = 'hit',
-  sunk = 'sunk',
+  'miss',
+  'hit',
+  'sunk',
 }
 
 export class Shot {

@@ -1,3 +1,5 @@
+export const AMOUNT_SHOTS_REQUIERED_TO_WIN = 17;
+
 export enum ShipType {
   CARRIER = 'CARRIER',
   DESTROYER = 'DESTROYER',

@@ -1,20 +1,28 @@
 import { CreateTableCommand, DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient } from '@aws-sdk/lib-dynamodb';
 
+const region = process.env.DYNAMO_REGION || 'us-east-1';
+const endpoint =
+  process.env.DYNAMO_ENDPOINT ||
+  `http://localhost:${process.env.DYNAMO_PORT || 8000}`;
+const accessKeyId = process.env.DYNAMO_ACCESS_KEY_ID || 'AKIAIDIDIDIDIDIDIDID';
+const secretAccessKey =
+  process.env.DYNAMO_SECRET_ACCESS_KEY ||
+  'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY';
+const tableName = process.env.DYNAMO_TABLE_NAME || 'games-table';
+
 const client = new DynamoDBClient({
-  region: 'us-east-1',
-  endpoint: 'http://localhost:8000',
+  region,
+  endpoint,
   credentials: {
-    accessKeyId: 'AKIAIDIDIDIDIDIDIDID',
-    secretAccessKey: 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
+    accessKeyId,
+    secretAccessKey,
   },
 });
 
-export const dynamoDoc = DynamoDBDocumentClient.from(client);
-
 export const dynamo = client;
-
-export const TABLE_NAMES = 'games-table';
+export const dynamoDoc = DynamoDBDocumentClient.from(client);
+export const TABLE_NAMES = tableName;
 
 export async function initTables() {
   try {
@@ -29,13 +37,20 @@ export async function initTables() {
           { AttributeName: 'PK', AttributeType: 'S' },
           { AttributeName: 'SK', AttributeType: 'S' },
         ],
-        ProvisionedThroughput: { ReadCapacityUnits: 5, WriteCapacityUnits: 5 },
+        ProvisionedThroughput: {
+          ReadCapacityUnits: 5,
+          WriteCapacityUnits: 5,
+        },
       })
     );
 
-    console.log(`Tabla ${TABLE_NAMES} creada`);
+    console.log(`✅ Tabla ${TABLE_NAMES} creada`);
   } catch (e: any) {
-    if (e.name === 'ResourceInUseException') console.log('Tabla ya existe');
-    else throw e;
+    if (e.name === 'ResourceInUseException') {
+      console.log(`ℹ️  Tabla ${TABLE_NAMES} ya existe`);
+    } else {
+      console.error('❌ Error creando tabla:', e);
+      throw e;
+    }
   }
 }

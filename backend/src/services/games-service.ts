@@ -1,19 +1,18 @@
 import { Server } from 'socket.io';
-import { AppDataSource } from '../data-source';
-import { Game, GameStatus } from '../entities/Game';
+import { GameRepository } from '../repositories/game-repository';
+import { ShipRepository } from '../repositories/ship-repository';
+import { ShotRepository } from '../repositories/shot-repository';
+import { Game, GameStatus } from '../models/Game';
 import {
   AMOUNT_SHOTS_REQUIERED_TO_WIN,
   getShipTypeSize,
   Orientation,
   Ship,
   ShipType,
-} from '../entities/Ship';
-import { Shot, ShotSuccess } from '../entities/Shot';
-import { saveGameReplay } from './game-replay-services';
+} from '../models/Ship';
 import { emitToPlayer } from '../sockets/game-sockets';
-import { GameRepository } from '../repositories/game-repository';
-import { ShipRepository } from '../repositories/ship-repository';
-import { ShotRepository } from '../repositories/shot-repository';
+import { Shot, ShotSuccess } from '../models/Shot';
+import { saveGameReplay } from './game-replay-services';
 
 let socketIOInstance: Server | null = null;
 const gameRepo = new GameRepository();
@@ -80,13 +79,20 @@ export const getShotsService = async (gameId: number) => {
 export const postFleetService = async (
   gameId: number,
   player: string,
-  ships: Ship[]
+  shipsInput: {
+    type: ShipType;
+    x: number;
+    y: number;
+    orientation: Orientation;
+  }[]
 ): Promise<Ship[]> => {
-  const game = await gameRepo.getGame(gameId);
-  const existingFleet = await shipRepo.getByGameAndPlayer(gameId, player);
-  if (existingFleet) throw new Error('Player already placed ships');
+  const game = await getGameService(gameId);
+  if (!game) throw new Error('Game not found');
+  if (!socketIOInstance) throw new Error('No socket service');
 
-  // Validación de cantidades por tipo
+  const existingShips = game.ships.filter((s) => s.player === player);
+  if (existingShips.length > 0) throw new Error('Player already placed ships');
+
   const typeCount: Record<ShipType, number> = {
     [ShipType.CARRIER]: 0,
     [ShipType.BATTLESHIP]: 0,
@@ -96,33 +102,46 @@ export const postFleetService = async (
 
   for (const s of shipsInput) typeCount[s.type]++;
   for (const type of Object.keys(typeCount) as ShipType[]) {
-    const required = type === ShipType.SUBMARINE ? 2 : 1;
-    if (typeCount[type] !== required)
-      throw new Error(
-        `Player must place exactly ${required} ship(s) of type ${type}`
-      );
+    switch (type) {
+      case ShipType.CARRIER:
+        if (typeCount[type] !== 1) {
+          throw new Error(`Player must place exactly 1 ship of type ${type}`);
+        }
+        break;
+      case ShipType.BATTLESHIP:
+        if (typeCount[type] !== 1) {
+          throw new Error(`Player must place exactly 1 ship of type ${type}`);
+        }
+        break;
+      case ShipType.SUBMARINE:
+        if (typeCount[type] !== 2) {
+          throw new Error(`Player must place exactly 2 ships of type ${type}`);
+        }
+        break;
+      case ShipType.DESTROYER:
+        if (typeCount[type] !== 1) {
+          throw new Error(`Player must place exactly 1 ship of type ${type}`);
+        }
+        break;
+      default:
+        throw new Error(`Incorrect ship type ${type}`);
+    }
   }
 
-  await shipRepo.saveAll(gameId, player, ships);
-
-  const allShipsP1 = await shipRepo.getByGameAndPlayer(gameId, game.player1);
-  const allShipsP2 = await shipRepo.getByGameAndPlayer(
-    gameId,
-    game.player2 ?? '-'
-  );
-  if (allShipsP1 && allShipsP2)
-    await gameRepo.updateStatus(gameId, GameStatus.IN_PROGRESS);
-
-  const updatedGame = await gameRepo.getGame(gameId);
-  emitToPlayer(
-    socketIOInstance!,
-    gameId,
-    player,
-    'game-state-update',
-    updatedGame
+  const shipsToSave = shipsInput.map(
+    (s) =>
+      new Ship(
+        gameId,
+        player,
+        s.type,
+        s.x,
+        s.y,
+        s.orientation,
+        getShipTypeSize(s.type)
+      )
   );
 
-  const savedShips = await shipRepository.save(ships);
+  const savedShips = await shipRepo.saveAll(gameId, player, shipsToSave);
 
   for (const ship of shipsInput) {
     console.log(
@@ -137,20 +156,22 @@ export const postFleetService = async (
     );
   }
 
-  const allShips = await shipRepository.find({
-    where: { game: { id: gameId } },
-  });
+  const allShips = await shipRepo.getByGame(gameId);
   const players = Array.from(new Set(allShips.map((s) => s.player)));
 
   if (players.length === 2) {
     game.status = GameStatus.IN_PROGRESS;
-    await gameRepository.update(gameId, { status: GameStatus.IN_PROGRESS });
+    await gameRepo.updateStatus(gameId, GameStatus.IN_PROGRESS);
     const updatedGame = await getGameService(gameId);
-    updatedGame.ships = ships.filter((ship) => ship.player === player);
+    updatedGame.ships = updatedGame.ships.filter(
+      (ship) => ship.player === player
+    );
     emitToGameRoom(gameId, 'game-state-update', updatedGame);
   } else {
     const updatedGame = await getGameService(gameId);
-    updatedGame.ships = ships.filter((ship) => ship.player === player);
+    updatedGame.ships = updatedGame.ships.filter(
+      (ship) => ship.player === player
+    );
     emitToPlayer(
       socketIOInstance,
       gameId,
@@ -160,13 +181,7 @@ export const postFleetService = async (
     );
   }
 
-  return savedShips;
-};
-
-export const getFleetsService = async (id: number, player?: string) => {
-  const whereClause: any = { game: { id } };
-  if (player) whereClause.player = player;
-  return shipRepository.find({ where: whereClause });
+  return shipsToSave;
 };
 
 export const postShotService = async (
@@ -184,16 +199,12 @@ export const postShotService = async (
   }
   if (!socketIOInstance) throw new Error('No socket service available');
 
-  const previousShots = (await shotRepo.getByGameId(gameId)).filter(
-    (shot) => shot.player === username
-  );
+  const previousShots = game.shots.filter((shot) => shot.player === username);
+
   const opponentUsername =
-    game.player1 === username ? game.player2! : game.player1;
-  const opponentFleet = await shipRepo.getByGameAndPlayer(
-    gameId,
-    opponentUsername
-  );
-  if (!opponentFleet) throw new Error('Opponent has not placed ships yet');
+    game.player1 === username ? game.player2 : game.player1;
+
+  const opponentShips = await getFleetsService(gameId, opponentUsername);
 
   let shotSuccess = ShotSuccess.miss;
 
@@ -201,8 +212,8 @@ export const postShotService = async (
     const shipPositions = getShipPositions(ship);
     if (shipPositions.some((pos) => pos.x === x && pos.y === y)) {
       shotSuccess = hasSunkShip(
-        [...getShotPositions(previousShots), { x, y }],
-        positions
+        getShotPositions(previousShots).concat({ x, y }),
+        shipPositions
       )
         ? ShotSuccess.sunk
         : ShotSuccess.hit;
@@ -214,28 +225,20 @@ export const postShotService = async (
           shotHasSunkShip(shot, shipPositions)
         );
         for (const shot of sinkingShotsForShip) {
-          await shotRepository.update(shot.id, {
-            shotSuccess: ShotSuccess.sunk,
-          });
+          await shotRepo.updateShotSuccess(gameId, shot.id, ShotSuccess.sunk);
         }
       }
     }
   }
 
-  const shot = new Shot(
-    previousShots.length + 1,
-    gameId,
-    username,
-    x,
-    y,
-    shotSuccess
+  const shot = await shotRepo.create(
+    new Shot(game.shots.length + 1, game.id, username, x, y, shotSuccess)
   );
-  await shotRepo.create(shot);
 
   console.log(
     'Player ' +
       username +
-      ' shot x:' +
+      ' shot x: ' +
       x +
       ' y: ' +
       y +
@@ -245,28 +248,19 @@ export const postShotService = async (
 
   const newCurrentTurn =
     game.player1 === username ? game.player2 : game.player1;
-  await gameRepository.update(game.id, { currentTurn: newCurrentTurn });
-  const updatedGame = await getGameService(id);
-  emitGameStateUpdate(id, updatedGame, socketIOInstance);
+  await gameRepo.updateTurn(gameId, newCurrentTurn ?? '-');
+  const updatedGame = await getGameService(gameId);
+  emitGameStateUpdate(gameId, updatedGame, socketIOInstance);
 
   if (await checkIfGameFinished(updatedGame, username)) {
-    await gameRepository.update(game.id, {
-      status: GameStatus.FINISHED,
-      winner: username,
-    });
-    const updatedGame = await getGameService(id);
-    emitToGameRoom(id, 'game-finished', {
+    await gameRepo.finishGame(game.id, username);
+    const updatedGame = await getGameService(gameId);
+    emitToGameRoom(gameId, 'game-finished', {
       winner: username,
       game: updatedGame,
     });
-    saveGameReplay(gameId);
-  } else {
-    const nextTurn = game.player1 === username ? game.player2! : game.player1;
-    await gameRepo.updateTurn(gameId, nextTurn);
-    emitToGameRoom(gameId, 'turn-changed', {
-      currentTurn: nextTurn,
-      previousTurn: username,
-    });
+    saveGameReplay(game.id);
+    return shot;
   }
 
   return shot;

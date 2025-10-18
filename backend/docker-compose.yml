@@ -60,8 +60,9 @@ services:
   dynamo:
     image: amazon/dynamodb-local:latest
     container_name: dynamodb-local
+    env_file: './.env'
     ports:
-      - '127.0.0.1:${DYNAMO_PORT:-8000}:8000'
+      - '127.0.0.1:${DYNAMO_PORT}:8000'
     command: '-jar DynamoDBLocal.jar -sharedDb -dbPath /home/dynamodblocal/data'
     volumes:
       - ./dynamo_data:/home/dynamodblocal/data
