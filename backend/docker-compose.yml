@@ -46,7 +46,7 @@ services:
       start_period: 10s
     restart: unless-stopped
 
-    bucket-init:
+  bucket-init:
     image: minio/mc:RELEASE.2025-05-21T01-59-54Z
     depends_on:
       - bucket
