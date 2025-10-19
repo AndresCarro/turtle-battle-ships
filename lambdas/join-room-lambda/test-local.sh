@@ -25,22 +25,22 @@ echo "Testing Flow: Create Users → Create Games → Join Rooms"
 echo "=========================================="
 
 # 1️⃣ Crear usuarios
-echo "Creating users..."
-run_test "Create user 'ash_ketchum'" "$URL_USERS" '{"username": "ash_ketchum"}'
-run_test "Create user 'misty_waterflower'" "$URL_USERS" '{"username": "misty_waterflower"}'
-run_test "Create user 'brock_rock'" "$URL_USERS" '{"username": "brock_rock"}'
-run_test "Create user 'gary_oak'" "$URL_USERS" '{"username": "gary_oak"}'
+#echo "Creating users..."
+run_test "Create user 'jimmy'" "$URL_USERS" '{"username": "jimmy"}'
+run_test "Create user 'pedro'" "$URL_USERS" '{"username": "pedro"}'
+run_test "Create user 'tito'" "$URL_USERS" '{"username": "tito"}'
+run_test "Create user 'gabriella'" "$URL_USERS" '{"username": "gabriella"}'
 
-# 2️⃣ Crear salas de juego
-echo "Creating game rooms..."
-run_test "Create game 'PalletTownArena'" "$URL_GAMES" '{"username": "ash_ketchum", "gameRoomName": "PalletTownArena"}'
-run_test "Create game 'CeruleanArena'" "$URL_GAMES" '{"username": "misty_waterflower", "gameRoomName": "CeruleanArena"}'
-
+## 2️⃣ Crear salas de juego
+#echo "Creating game rooms..."
+#run_test "Create game 'game55'" "$URL_GAMES" '{"username": "jimmy", "gameRoomName": "game55"}'
+#run_test "Create game 'partiditadetest'" "$URL_GAMES" '{"username": "pedro", "gameRoomName": "partiditadetest"}'
+#
 # 3️⃣ Tests de join-room
 echo "Testing joinRoom Lambda..."
-run_test "Join game 1 as 'brock_rock'" "$URL_JOIN" '{"pathParameters": {"id": "1"}, "body": "{\"username\": \"brock_rock\"}"}'
-run_test "Join game 2 as 'ash_ketchum'" "$URL_JOIN" '{"pathParameters": {"id": "2"}, "body": "{\"username\": \"ash_ketchum\"}"}'
-run_test "Try joining full game 1 again as 'gary_oak'" "$URL_JOIN" '{"pathParameters": {"id": "1"}, "body": "{\"username\": \"gary_oak\"}"}'
+run_test "Join game 1 as 'tito'" "$URL_JOIN" '{"pathParameters": {"id": "13"}, "body": "{\"username\": \"tito\"}"}'
+run_test "Join game 2 as 'jimmy'" "$URL_JOIN" '{"pathParameters": {"id": "14"}, "body": "{\"username\": \"jimmy\"}"}'
+run_test "Try joining full game 1 again as 'gabriella'" "$URL_JOIN" '{"pathParameters": {"id": "1"}, "body": "{\"username\": \"gabriella\"}"}'
 run_test "Join non-existent game (should fail)" "$URL_JOIN" '{"pathParameters": {"id": "9999"}, "body": "{\"username\": \"team_rocket\"}"}'
 run_test "Missing username (should fail)" "$URL_JOIN" '{"pathParameters": {"id": "1"}, "body": "{}"}'
 
