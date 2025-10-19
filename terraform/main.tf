@@ -20,3 +20,9 @@ module "network" {
     azs                     = var.azs
     region                  = var.region
 }
+
+module "s3" {
+  source       = "./s3"
+  bucket_name  = "turtle-battle-ships-frontend-2"
+  project      = "turtle-battle-ships"
+}
