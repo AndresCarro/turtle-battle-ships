@@ -5,6 +5,7 @@
 # Archivos de estado
 *.tfstate
 *.tfstate.*
+*.tfvars
 
 # Archivos de respaldo de estado
 crash.log

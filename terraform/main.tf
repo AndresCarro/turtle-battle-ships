@@ -17,19 +17,6 @@ data "aws_iam_role" "lab_role" {
   name = "LabRole"
 }
 
-module "network" {
-  source               = "./network"
-  private_subnet_cidrs = var.private_subnet_cidrs
-  azs                  = var.azs
-  region               = var.region
-}
-
-module "s3" {
-  source      = "./s3"
-  bucket_name = "turtle-battle-ships-frontend-2"
-  project     = "turtle-battle-ships"
-}
-
 module "create_user_lambda" {
   source = "./lambda-with-ecr"
 
@@ -50,4 +37,54 @@ module "create_user_lambda" {
     Project  = "turtle-battleships"
     Function = "create-user"
   }
+}
+
+
+module "vpc" {
+  source = "./vpc"
+
+  vpc_config           = var.vpc_config
+  subnets_config       = var.subnets_config
+  route_tables_config  = var.route_tables_config
+  vpc_endpoints_config = var.vpc_endpoints_config
+  tags                 = var.common_tags
+}
+
+# 🪣 S3 — Replays y SPA
+module "s3" {
+  source = "./s3"
+
+  buckets = var.s3_buckets
+  tags    = var.common_tags
+}
+
+# 📤 Outputs globales
+output "vpc_id" {
+  description = "ID de la VPC creada"
+  value       = module.vpc.vpc_id
+}
+
+output "subnets" {
+  description = "IDs de las subnets creadas"
+  value       = module.vpc.subnets
+}
+
+output "route_tables" {
+  description = "IDs de las route tables creadas"
+  value       = module.vpc.route_tables
+}
+
+output "vpc_endpoints" {
+  description = "IDs de los VPC Endpoints creados"
+  value       = module.vpc.vpc_endpoints
+}
+
+output "s3_bucket_names" {
+  description = "Nombres de los buckets creados"
+  value       = module.s3.bucket_names
+}
+
+output "s3_bucket_arns" {
+  description = "ARNs de los buckets creados"
+  value       = module.s3.bucket_arns
 }
