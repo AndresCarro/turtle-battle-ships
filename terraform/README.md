@@ -1,4 +1,4 @@
-# 🐢 Turtle Battle Ships — Cloud Computing - WIPPPP
+# 🐢 Turtle Battle Ships — Cloud Computing
 
 Este proyecto es una configuración mínima de **Terraform** para desplegar infraestructura en **AWS** usando credenciales temporales del **AWS Learner Lab**.
 
@@ -28,15 +28,14 @@ Este proyecto es una configuración mínima de **Terraform** para desplegar infr
 
 ---
 
-## 🔑 Configuración de credenciales
+## 🔑 Configuración de credenciales (Primera vez)
 
-1. Inicia tu **AWS Learner Lab** y espera que esté activo.  
-2. Haz clic en **“AWS CLI Credentials”** y copia:
+1. Iniciá tu **AWS Learner Lab** y esperá que esté activo.  
+2. Hacé clic en **“AWS CLI Credentials”** y copiá:
    - `AWS Access Key ID`
    - `AWS Secret Access Key`
    - `AWS Session Token`
-
-3. Crea el archivo `aws-credentials` y pega las credenciales:
+3. Creá el archivo `aws-credentials` en la raíz del proyecto con este contenido:
 
    ```ini
    [default]
@@ -45,14 +44,14 @@ Este proyecto es una configuración mínima de **Terraform** para desplegar infr
    aws_session_token = TU_SESSION_TOKEN
    ```
 
-4. Crea el archivo `.env` ya está preparado para apuntar a ese archivo:
+4. Crea el archivo `.env` con este contenido:
 
    ```bash
    export AWS_SHARED_CREDENTIALS_FILE=$(pwd)/aws-credentials
    export AWS_DEFAULT_REGION=us-east-1
    ```
 
-5. Cargá las variables de entorno en la terminal:
+5. Cargá las variables en la terminal:
 
    ```bash
    source .env
@@ -64,7 +63,49 @@ Este proyecto es una configuración mínima de **Terraform** para desplegar infr
    aws sts get-caller-identity
    ```
 
-   Si todo está bien, obtendrás un JSON con tu identidad de sesión.
+---
+
+## ⚡ Renovar credenciales cuando el lab expira
+
+Las credenciales del Learner Lab expiran cada pocas horas. Cuando esto pasa, vas a ver errores como:
+
+```
+InvalidClientTokenId: The security token included in the request is invalid.
+```
+
+Para solucionarlo:
+
+1. Volvé al Learner Lab y obtené nuevas credenciales temporales.
+2. Editá el archivo `aws-credentials` y reemplazá las credenciales viejas.
+3. Limpiá variables viejas del entorno:
+
+   ```bash
+   unset AWS_ACCESS_KEY_ID
+   unset AWS_SECRET_ACCESS_KEY
+   unset AWS_SESSION_TOKEN
+   unset AWS_SHARED_CREDENTIALS_FILE
+   ```
+
+4. Volvé a cargar `.env`:
+
+   ```bash
+   source .env
+   ```
+
+5. Verificá nuevamente:
+
+   ```bash
+   aws sts get-caller-identity
+   ```
+
+6. Reinicializá Terraform para forzar que use las nuevas credenciales:
+
+   ```bash
+   terraform init -reconfigure
+   terraform plan
+   ```
+
+✅ Si `aws sts get-caller-identity` funciona, Terraform también.
 
 ---
 
@@ -89,7 +130,7 @@ Este proyecto es una configuración mínima de **Terraform** para desplegar infr
    ```
    Do you want to perform these actions?
    ```
-   responde con `yes`.
+   respondé con `yes`.
 
 ---
 
@@ -101,36 +142,11 @@ Para borrar la infraestructura creada y no dejar recursos activos:
 terraform destroy
 ```
 
-👉 **Importante:** Esto es muy útil cuando usás Learner Lab, ya que los recursos que quedan activos después de cerrar la sesión se pierden igualmente.
+👉 Importante: Esto es útil en Learner Lab, ya que los recursos activos se pierden al finalizar la sesión.
 
 ---
 
-## ⚠️ Notas importantes sobre Learner Lab
-
-- Las credenciales expiran cuando se termina el laboratorio (normalmente 2 h).  
-- Cuando recibas nuevas credenciales, **solo tenés que reemplazarlas** en `aws-credentials`.  
-- No subas este archivo a ningún repositorio público. Agregalo a tu `.gitignore`:
-  ```
-  aws-credentials
-  .env
-  ```
-
----
-
-## 📚 Comandos útiles
-
-| Comando                      | Descripción                                   |
-|------------------------------|-----------------------------------------------|
-| `terraform fmt`              | Formatea los archivos `.tf`                   |
-| `terraform validate`         | Valida la sintaxis y consistencia             |
-| `terraform init`             | Inicializa el proyecto y descarga providers   |
-| `terraform plan`             | Muestra lo que se va a crear/modificar        |
-| `terraform apply`           | Aplica cambios en la infraestructura          |
-| `terraform destroy`          | Elimina todos los recursos creados           |
-
----
-
-## 📝 Ejemplo de recurso en `main.tf`
+## 📝 Ejemplo de `main.tf`
 
 ```hcl
 terraform {
@@ -140,7 +156,6 @@ terraform {
       version = "~> 5.0"
     }
   }
-
   required_version = ">= 1.5.0"
 }
 
@@ -148,89 +163,40 @@ provider "aws" {
   region = "us-east-1"
 }
 
-# Ejemplo: instancia EC2
 resource "aws_instance" "ejemplo" {
-  ami           = "ami-0c55b159cbfafe1f0" # Cambiar según la región
+  ami           = "ami-0c55b159cbfafe1f0"
   instance_type = "t2.micro"
 }
 ```
 
 ---
 
-## 🧠 Recomendaciones
-
-- Actualizá tus credenciales cada vez que inicies un nuevo Learner Lab.
-- Usá `terraform plan` antes de aplicar para evitar errores.
-- Destruí los recursos al terminar para no dejar nada colgado.
-- Versioná solo los `.tf` y el `README.md` — no subas credenciales.
-
----
-
-## 👨‍💻 Autor
-
-Proyecto base creado por **[Tu Nombre]** — para prácticas de infraestructura como código con Terraform y AWS.
-
-```
-MIT License
-```
-
-
----
-
 ## 🪟 Tutorial para Windows
 
-Si estás usando **Windows**, hay dos formas recomendadas de trabajar con Terraform y AWS Learner Lab:
+### ✅ Opción 1 — WSL (recomendada)
 
-### ✅ Opción 1 — Usar WSL (recomendada)
+1. Instalar WSL2.  
+2. Instalar Ubuntu desde Microsoft Store.  
+3. Seguir exactamente los mismos pasos que en macOS/Linux.
 
-1. **Instalá WSL2** (Subsistema de Windows para Linux) siguiendo esta guía oficial:  
-   👉 [https://learn.microsoft.com/windows/wsl/install](https://learn.microsoft.com/windows/wsl/install)
+### 🧰 Opción 2 — PowerShell
 
-2. Instala **Ubuntu** desde Microsoft Store.  
-3. Abre Ubuntu y seguí exactamente los mismos pasos que en este README para macOS/Linux:  
-   - Instalar Terraform (`brew` no es necesario — podés usar `wget` o `apt`)  
-   - Crear `.env` y `aws-credentials`  
-   - Usar `source .env`  
-   - Ejecutar `terraform init`, `plan`, `apply`, etc.
-
-📌 *Ventaja:* Es el entorno más parecido a Linux real, compatible con todos los comandos nativos.
-
----
-
-### 🧰 Opción 2 — Usar PowerShell nativo
-
-Si preferís no instalar WSL:
-
-1. **Instalá Terraform** para Windows desde el sitio oficial:  
-   👉 [https://developer.hashicorp.com/terraform/downloads](https://developer.hashicorp.com/terraform/downloads)  
-   - Descargá el ZIP
-   - Extraé `terraform.exe` y agregalo a tu `PATH`
-
-2. **Instalá AWS CLI para Windows**:  
-   👉 [https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html)
-
-3. Crea un archivo llamado `aws-credentials` en tu carpeta del proyecto con este formato:
-
-   ```ini
-   [default]
-   aws_access_key_id = TU_ACCESS_KEY
-   aws_secret_access_key = TU_SECRET_KEY
-   aws_session_token = TU_SESSION_TOKEN
-   ```
-
-4. Configura las variables de entorno en PowerShell (reemplazando `<RUTA>`):
+1. Crear el archivo `aws-credentials` con tus credenciales.
+2. Configurar variables de entorno en PowerShell:
 
    ```powershell
    $env:AWS_SHARED_CREDENTIALS_FILE = "C:\ruta\a\tu\proyecto\aws-credentials"
    $env:AWS_DEFAULT_REGION = "us-east-1"
    ```
 
-5. Verificá que todo funciona:
+3. Verificar credenciales:
+
    ```powershell
    aws sts get-caller-identity
    ```
 
-6. Luego podés usar Terraform directamente en PowerShell:
+4. Ejecutar Terraform normalmente:
+
    ```powershell
    terraform init
    terraform plan
@@ -238,11 +204,17 @@ Si preferís no instalar WSL:
    terraform destroy
    ```
 
-💡 *Consejo:* Podés guardar los comandos de exportación en un archivo `.ps1` (script de PowerShell) para no tener que escribirlos cada vez.
+---
+
+## 📎 Consejos finales
+
+- **No subas** `aws-credentials` ni `.env` a ningún repo público.  
+- Siempre validá tus credenciales con `aws sts get-caller-identity` antes de correr Terraform.  
+- Si obtenés `InvalidClientTokenId`, **actualizá el token**, no toques Terraform primero.  
+- Destruí recursos al finalizar para evitar errores en la próxima sesión.
 
 ---
 
-### 📎 Tip extra
+## 👨‍💻 Autor
 
-Si usás Visual Studio Code en Windows, podés abrir tu proyecto en **WSL** directamente (con la extensión “Remote - WSL”) y trabajar como si estuvieras en Linux. Esto evita muchos problemas de compatibilidad.
-
+Proyecto base creado para prácticas de infraestructura como código con Terraform y AWS Learner Lab.
