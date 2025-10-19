@@ -38,11 +38,11 @@ run_test "Create game 'CeruleanArena'" "$URL_GAMES" '{"username": "misty_waterfl
 
 # 3️⃣ Tests de join-room
 echo "Testing joinRoom Lambda..."
-run_test "Join game 1 as 'brock_rock'" "$URL_JOIN" '{"gameId": 1, "username": "brock_rock"}'
-run_test "Join game 2 as 'ash_ketchum'" "$URL_JOIN" '{"gameId": 2, "username": "ash_ketchum"}'
-run_test "Try joining full game 1 again as 'gary_oak'" "$URL_JOIN" '{"gameId": 1, "username": "gary_oak"}'
-run_test "Join non-existent game (should fail)" "$URL_JOIN" '{"gameId": 9999, "username": "team_rocket"}'
-run_test "Missing username (should fail)" "$URL_JOIN" '{"gameId": 1}'
+run_test "Join game 1 as 'brock_rock'" "$URL_JOIN" '{"pathParameters": {"id": "1"}, "body": "{\"username\": \"brock_rock\"}"}'
+run_test "Join game 2 as 'ash_ketchum'" "$URL_JOIN" '{"pathParameters": {"id": "2"}, "body": "{\"username\": \"ash_ketchum\"}"}'
+run_test "Try joining full game 1 again as 'gary_oak'" "$URL_JOIN" '{"pathParameters": {"id": "1"}, "body": "{\"username\": \"gary_oak\"}"}'
+run_test "Join non-existent game (should fail)" "$URL_JOIN" '{"pathParameters": {"id": "9999"}, "body": "{\"username\": \"team_rocket\"}"}'
+run_test "Missing username (should fail)" "$URL_JOIN" '{"pathParameters": {"id": "1"}, "body": "{}"}'
 
 echo "=========================================="
 echo "✓ Tests completed!"

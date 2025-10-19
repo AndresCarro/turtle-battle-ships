@@ -31,7 +31,7 @@ export async function joinRoom(
     await client.query("BEGIN");
 
     const gameResult = await client.query(
-      `SELECT * FROM game WHERE id = $1 FOR UPDATE`,
+      `SELECT * FROM game_postgres WHERE id = $1 FOR UPDATE`,
       [gameId]
     );
 
@@ -47,7 +47,7 @@ export async function joinRoom(
 
     const updatedGame = await client.query(
       `
-      UPDATE game
+      UPDATE game_postgres
       SET player2 = $1,
           status = $2,
           "currentTurn" = player1

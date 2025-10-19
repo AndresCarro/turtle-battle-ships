@@ -18,8 +18,8 @@ FROM public.ecr.aws/lambda/nodejs:20
 
 COPY --from=builder /build/node_modules ${LAMBDA_TASK_ROOT}/node_modules
 
-# Copy compiled JavaScript code from builder
-COPY --from=builder /build/dist/* ${LAMBDA_TASK_ROOT}/
+# Copy compiled JavaScript code from builder (preserve directory structure)
+COPY --from=builder /build/dist ${LAMBDA_TASK_ROOT}
 
 # Set the CMD to your handler
 CMD [ "handler.handler" ]
