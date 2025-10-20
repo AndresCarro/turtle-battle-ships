@@ -142,6 +142,11 @@ module "lambda_functions" {
       Function = each.value.function_name
     }
   )
+
+  providers = {
+    aws    = aws
+    docker = docker
+  }
 }
 
 # Backend ECS Service
@@ -200,6 +205,11 @@ module "backend" {
       Service = "backend"
     }
   )
+
+  providers = {
+    aws    = aws
+    docker = docker
+  }
 }
 
 # TODO: GENERATE API GATEWAYS FOR LAMBDAS AND BACKEND
@@ -264,6 +274,35 @@ module "frontend_bucket" {
 
   upload_enabled    = var.frontend_bucket.upload_enabled
   upload_source_dir = var.frontend_bucket.upload_dir
+
+  tags = local.tags
+}
+
+
+# DynamoDB Table
+module "dynamodb_shots" {
+  source = "./dynamodb"
+
+  name           = "turtle-battleships-shots"
+  billing_mode   = "PAY_PER_REQUEST"
+  partition_key  = "PK"
+  sort_key       = "SK"
+
+  attributes = [
+    { name = "PK", type = "S" },
+    { name = "SK", type = "S" }
+  ]
+
+  encryption = {
+    enabled = true
+  }
+
+  point_in_time_recovery = false
+
+  ttl = {
+    enabled         = false
+    attribute_name  = ""
+  }
 
   tags = local.tags
 }

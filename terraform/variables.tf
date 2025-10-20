@@ -67,7 +67,7 @@ variable "vpc_endpoints_config" {
   validation {
     condition = alltrue([
       for ep in var.vpc_endpoints_config : (
-        lower(ep.type) != "interface" || length(try(ep.subnets, [])) > 0
+        lower(ep.type) != "interface" || length(coalesce(ep.subnets, [])) > 0
       )
     ])
     error_message = "Must define subnets for all interface VPC endpoints."
