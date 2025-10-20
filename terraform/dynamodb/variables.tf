@@ -1,47 +1,47 @@
 variable "name" {
-  description = "Nombre de la tabla DynamoDB"
+  description = "Name of the DynamoDB table"
   type        = string
 }
 
 variable "billing_mode" {
-  description = "Modo de facturación (PAY_PER_REQUEST o PROVISIONED)"
+  description = "Billing mode (PAY_PER_REQUEST or PROVISIONED)"
   type        = string
   default     = "PAY_PER_REQUEST"
 }
 
 variable "read_capacity" {
-  description = "Capacidad de lectura (solo para PROVISIONED)"
+  description = "Read capacity units (only for PROVISIONED mode)"
   type        = number
   default     = 0
 }
 
 variable "write_capacity" {
-  description = "Capacidad de escritura (solo para PROVISIONED)"
+  description = "Write capacity units (only for PROVISIONED mode)"
   type        = number
   default     = 0
 }
 
 variable "partition_key" {
-  description = "Partition key (hash key)"
+  description = "Partition key (hash key) attribute name"
   type        = string
 }
 
 variable "sort_key" {
-  description = "Sort key (range key, opcional)"
+  description = "Sort key (range key) attribute name (optional)"
   type        = string
   default     = null
 }
 
 variable "attributes" {
-  description = "Lista de atributos a declarar en la tabla"
+  description = "List of attributes to declare in the table"
   type = list(object({
     name = string
-    type = string # S, N, B
+    type = string # S (String), N (Number), B (Binary)
   }))
 }
 
 variable "global_secondary_indexes" {
-  description = "Lista opcional de índices secundarios globales"
+  description = "List of global secondary indexes"
   type = list(object({
     name               = string
     partition_key      = string
@@ -54,7 +54,7 @@ variable "global_secondary_indexes" {
 }
 
 variable "encryption" {
-  description = "Configuración de encriptación"
+  description = "Encryption configuration"
   type = object({
     enabled      = bool
     kms_key_arn  = optional(string)
@@ -65,13 +65,13 @@ variable "encryption" {
 }
 
 variable "point_in_time_recovery" {
-  description = "Activar PITR (recuperación punto en el tiempo)"
+  description = "Enable Point-In-Time Recovery (PITR)"
   type        = bool
   default     = false
 }
 
 variable "ttl" {
-  description = "TTL opcional para expiración de items"
+  description = "Time To Live (TTL) configuration for automatic item expiration"
   type = object({
     enabled         = bool
     attribute_name  = string
@@ -83,7 +83,7 @@ variable "ttl" {
 }
 
 variable "tags" {
-  description = "Tags comunes"
+  description = "Common tags to apply to the table"
   type        = map(string)
   default     = {}
 }

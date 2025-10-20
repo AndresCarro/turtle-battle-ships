@@ -4,10 +4,6 @@ terraform {
       source  = "hashicorp/aws"
       version = "~> 5.0"
     }
-    docker = {
-      source  = "kreuzwerker/docker"
-      version = "~> 3.0"
-    }
   }
   required_version = ">= 1.5.0"
 }
@@ -16,18 +12,6 @@ provider "aws" {
   region                   = var.region
   shared_credentials_files = ["${path.module}/aws-credentials"]
   profile                  = "default"
-}
-
-# Docker provider configuration
-data "aws_caller_identity" "current" {}
-data "aws_ecr_authorization_token" "token" {}
-
-provider "docker" {
-  registry_auth {
-    address  = "${data.aws_caller_identity.current.account_id}.dkr.ecr.${var.region}.amazonaws.com"
-    username = data.aws_ecr_authorization_token.token.user_name
-    password = data.aws_ecr_authorization_token.token.password
-  }
 }
 
 # Data Sources
@@ -105,7 +89,32 @@ module "vpc" {
 }
 
 # TODO: GENERATE RDS AND RDS PROXY
-# TODO: GENERATE DYNAMODB
+
+module "dynamodb_shots" {
+  source = "./dynamodb"
+
+  name          = var.dynamodb_shots_table.name
+  billing_mode  = var.dynamodb_shots_table.billing_mode
+  partition_key = var.dynamodb_shots_table.partition_key
+  sort_key      = var.dynamodb_shots_table.sort_key
+
+  attributes = var.dynamodb_shots_table.attributes
+
+  global_secondary_indexes = var.dynamodb_shots_table.global_secondary_indexes
+
+  encryption = {
+    enabled = var.dynamodb_shots_table.encryption_enabled
+  }
+
+  point_in_time_recovery = var.dynamodb_shots_table.point_in_time_recovery
+
+  ttl = {
+    enabled        = var.dynamodb_shots_table.ttl_enabled
+    attribute_name = var.dynamodb_shots_table.ttl_attribute_name
+  }
+
+  tags = local.tags
+}
 
 # Lambda Functions
 module "lambda_functions" {
@@ -142,11 +151,6 @@ module "lambda_functions" {
       Function = each.value.function_name
     }
   )
-
-  providers = {
-    aws    = aws
-    docker = docker
-  }
 }
 
 # Backend ECS Service
@@ -205,11 +209,6 @@ module "backend" {
       Service = "backend"
     }
   )
-
-  providers = {
-    aws    = aws
-    docker = docker
-  }
 }
 
 # TODO: GENERATE API GATEWAYS FOR LAMBDAS AND BACKEND
@@ -274,35 +273,6 @@ module "frontend_bucket" {
 
   upload_enabled    = var.frontend_bucket.upload_enabled
   upload_source_dir = var.frontend_bucket.upload_dir
-
-  tags = local.tags
-}
-
-
-# DynamoDB Table
-module "dynamodb_shots" {
-  source = "./dynamodb"
-
-  name           = "turtle-battleships-shots"
-  billing_mode   = "PAY_PER_REQUEST"
-  partition_key  = "PK"
-  sort_key       = "SK"
-
-  attributes = [
-    { name = "PK", type = "S" },
-    { name = "SK", type = "S" }
-  ]
-
-  encryption = {
-    enabled = true
-  }
-
-  point_in_time_recovery = false
-
-  ttl = {
-    enabled         = false
-    attribute_name  = ""
-  }
 
   tags = local.tags
 }
