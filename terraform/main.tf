@@ -9,30 +9,177 @@ terraform {
 }
 
 provider "aws" {
-  region  = var.region
-  profile = "default"
+  region                   = var.region
+  shared_credentials_files = ["${path.module}/aws-credentials"]
+  profile                  = "default"
 }
 
 data "aws_iam_role" "lab_role" {
   name = "LabRole"
 }
 
-# module "create_user_lambda" {
-#   source = "./lambda-with-ecr"
+# API Gateway CloudWatch Logs Role
+resource "aws_api_gateway_account" "api_gateway_account" {
+  cloudwatch_role_arn = data.aws_iam_role.lab_role.arn
+}
 
-#   function_name   = "turtle-battleships-create-user"
-#   dockerfile_path = "${path.module}/../lambdas/create-user-lambda"
-#   region          = var.region
-#   role_arn        = data.aws_iam_role.lab_role.arn
+# Security Group for Lambda functions
+resource "aws_security_group" "lambda_sg" {
+  name        = "turtle-battleships-lambda-sg"
+  description = "Security group for Lambda functions to access RDS and other resources"
+  vpc_id      = module.vpc.vpc_id
 
-#   memory_size = 512
-#   timeout     = 30
+  # Allow outbound traffic to RDS (PostgreSQL)
+  egress {
+    from_port   = 5432
+    to_port     = 5432
+    protocol    = "tcp"
+    cidr_blocks = [var.vpc_config.cidr]
+    description = "Allow Lambda to connect to RDS PostgreSQL"
+  }
 
-#   environment_variables = {
-#     ENVIRONMENT = "production"
-#     REGION      = var.region
-#   }
+  # Allow outbound HTTPS for API calls and AWS services
+  egress {
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+    description = "Allow HTTPS for AWS API calls"
+  }
 
+  # Allow outbound HTTP (if needed)
+  egress {
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+    description = "Allow HTTP for external calls"
+  }
+
+  # Allow all outbound for VPC endpoints
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = [var.vpc_config.cidr]
+    description = "Allow all traffic within VPC"
+  }
+
+  tags = merge(
+    var.common_tags,
+    {
+      Name = "turtle-battleships-lambda-sg"
+    }
+  )
+}
+
+module "create_user_lambda" {
+  source = "./lambda-with-ecr"
+  
+  function_name   = "turtle-battleships-create-user"
+  dockerfile_path = "${path.module}/../lambdas/create-user-lambda"
+  region          = var.region
+  role_arn        = data.aws_iam_role.lab_role.arn
+  
+  memory_size = 512
+  timeout     = 30
+  
+  environment_variables = {
+    ENVIRONMENT = "production"
+    REGION      = var.region
+  }
+
+  tags = {
+    Project  = "turtle-battleships"
+    Function = "create-user"
+  }
+
+  vpc_config = {
+    subnet_ids         = [for k, v in module.vpc.subnets : v if startswith(k, "private")]
+    security_group_ids = [aws_security_group.lambda_sg.id]
+  }
+}
+
+module "list_game_rooms_lambda" {
+  source = "./lambda-with-ecr"
+
+  function_name   = "turtle-battleships-list-rooms"
+  dockerfile_path = "${path.module}/../lambdas/list-game-rooms-lambda"
+  region          = var.region
+  role_arn        = data.aws_iam_role.lab_role.arn
+
+  memory_size = 512
+  timeout     = 30
+
+  environment_variables = {
+    ENVIRONMENT = "production"
+    REGION      = var.region
+  }
+
+  tags = {
+    Project  = "turtle-battleships"
+    Function = "list-rooms"
+  }
+
+  vpc_config = {
+    subnet_ids         = [for k, v in module.vpc.subnets : v if startswith(k, "private")]
+    security_group_ids = [aws_security_group.lambda_sg.id]
+  }
+}
+
+module "create_game_room_lambda" {
+  source = "./lambda-with-ecr"
+
+  function_name   = "turtle-battleships-create-room"
+  dockerfile_path = "${path.module}/../lambdas/create-game-room-lambda"
+  region          = var.region
+  role_arn        = data.aws_iam_role.lab_role.arn
+
+  memory_size = 512
+  timeout     = 30
+
+  environment_variables = {
+    ENVIRONMENT = "production"
+    REGION      = var.region
+  }
+
+  tags = {
+    Project  = "turtle-battleships"
+    Function = "create-room"
+  }
+
+  vpc_config = {
+    subnet_ids         = [for k, v in module.vpc.subnets : v if startswith(k, "private")]
+    security_group_ids = [aws_security_group.lambda_sg.id]
+  }
+}
+
+module "join_room_lambda" {
+  source = "./lambda-with-ecr"
+
+  function_name   = "turtle-battleships-join-room"
+  dockerfile_path = "${path.module}/../lambdas/join-room-lambda"
+  region          = var.region
+  role_arn        = data.aws_iam_role.lab_role.arn
+
+  memory_size = 512
+  timeout     = 30
+
+  environment_variables = {
+    ENVIRONMENT = "production"
+    REGION      = var.region
+  }
+
+  tags = {
+    Project  = "turtle-battleships"
+    Function = "join-room"
+  }
+
+  vpc_config = {
+    subnet_ids         = [for k, v in module.vpc.subnets : v if startswith(k, "private")]
+    security_group_ids = [aws_security_group.lambda_sg.id]
+  }
+}
 #   tags = {
 #     Project  = "turtle-battleships"
 #     Function = "create-user"
@@ -50,12 +197,59 @@ module "vpc" {
 }
 
 # 🪣 S3 — Replays y SPA
-# module "s3" {
-#   source = "./s3"
+module "s3" {
+  source = "./s3"
 
-#   buckets = var.s3_buckets
-#   tags    = var.common_tags
-# }
+  buckets = var.s3_buckets
+  tags    = var.common_tags
+}
+
+# 🌐 API Gateway REST API — Lambda Functions
+module "rest_api_gateway" {
+  source = "./api-gateway/rest-api"
+
+  api_name        = "turtle-battleships-api"
+  api_description = "REST API for Turtle Battleships game"
+  stage_name      = "prod"
+
+  lambda_integrations = [
+    {
+      path_part    = "users"
+      http_methods = ["POST"]
+      lambda_arn   = module.create_user_lambda.function_invoke_arn
+      lambda_name  = module.create_user_lambda.function_name
+      enable_cors  = true
+    },
+    {
+      path_part    = "rooms"
+      http_methods = ["GET"]
+      lambda_arn   = module.list_game_rooms_lambda.function_invoke_arn
+      lambda_name  = module.list_game_rooms_lambda.function_name
+      enable_cors  = true
+    },
+    {
+      path_part    = "create-room"
+      http_methods = ["POST"]
+      lambda_arn   = module.create_game_room_lambda.function_invoke_arn
+      lambda_name  = module.create_game_room_lambda.function_name
+      enable_cors  = true
+    },
+    {
+      path_part    = "join-room"
+      http_methods = ["POST"]
+      lambda_arn   = module.join_room_lambda.function_invoke_arn
+      lambda_name  = module.join_room_lambda.function_name
+      enable_cors  = true
+    }
+  ]
+
+  xray_tracing_enabled   = false
+  log_retention_days     = 7
+  throttling_burst_limit = 1000
+  throttling_rate_limit  = 500
+
+  tags = var.common_tags
+}
 
 # 📤 Outputs globales
 # output "vpc_id" {
@@ -132,3 +326,28 @@ module "vpc" {
 #     Service     = "backend"
 #   }
 # }
+
+output "rest_api_url" {
+  description = "URL base del API Gateway REST"
+  value       = module.rest_api_gateway.invoke_url
+}
+
+output "rest_api_endpoints" {
+  description = "Endpoints disponibles del REST API"
+  value = {
+    create_user  = "${module.rest_api_gateway.invoke_url}/users"
+    list_rooms   = "${module.rest_api_gateway.invoke_url}/rooms"
+    create_room  = "${module.rest_api_gateway.invoke_url}/create-room"
+    join_room    = "${module.rest_api_gateway.invoke_url}/join-room"
+  }
+}
+
+output "lambda_functions" {
+  description = "Nombres de las funciones Lambda creadas"
+  value = {
+    create_user  = module.create_user_lambda.function_name
+    list_rooms   = module.list_game_rooms_lambda.function_name
+    create_room  = module.create_game_room_lambda.function_name
+    join_room    = module.join_room_lambda.function_name
+  }
+}
