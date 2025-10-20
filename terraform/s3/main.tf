@@ -1,23 +1,18 @@
 resource "aws_s3_bucket" "this" {
-  for_each = { for b in var.buckets : b.name => b }
-
-  bucket = each.value.name
+  bucket = var.bucket_name
 
   tags = merge(
     {
-      Name = each.value.name
+      Name = var.bucket_name
     },
     var.tags
   )
 }
 
 resource "aws_s3_bucket_versioning" "this" {
-  for_each = {
-    for b in var.buckets : b.name => b
-    if try(b.versioning.enabled, false)
-  }
+  count = var.versioning_enabled ? 1 : 0
 
-  bucket = aws_s3_bucket.this[each.key].id
+  bucket = aws_s3_bucket.this.id
 
   versioning_configuration {
     status = "Enabled"
@@ -25,61 +20,48 @@ resource "aws_s3_bucket_versioning" "this" {
 }
 
 resource "aws_s3_bucket_public_access_block" "this" {
-  for_each = { for b in var.buckets : b.name => b }
+  bucket = aws_s3_bucket.this.id
 
-  bucket = aws_s3_bucket.this[each.key].id
-
-  block_public_acls       = try(each.value.public_access_block.block_public_acls, true)
-  block_public_policy     = try(each.value.public_access_block.block_public_policy, true)
-  ignore_public_acls      = try(each.value.public_access_block.ignore_public_acls, true)
-  restrict_public_buckets = try(each.value.public_access_block.restrict_public_buckets, true)
+  block_public_acls       = var.public_access_block.block_public_acls
+  block_public_policy     = var.public_access_block.block_public_policy
+  ignore_public_acls      = var.public_access_block.ignore_public_acls
+  restrict_public_buckets = var.public_access_block.restrict_public_buckets
 }
 
-
 resource "aws_s3_bucket_server_side_encryption_configuration" "this" {
-  for_each = {
-    for b in var.buckets : b.name => b
-    if try(b.encryption.enabled, false)
-  }
+  count = var.encryption_enabled ? 1 : 0
 
-  bucket = aws_s3_bucket.this[each.key].id
+  bucket = aws_s3_bucket.this.id
 
   rule {
     apply_server_side_encryption_by_default {
-      sse_algorithm     = each.value.encryption.sse_algorithm
-      kms_master_key_id = try(each.value.encryption.kms_master_key_id, null)
+      sse_algorithm     = var.sse_algorithm
+      kms_master_key_id = var.kms_master_key_id
     }
   }
 }
 
 resource "aws_s3_bucket_website_configuration" "this" {
-  for_each = {
-    for b in var.buckets : b.name => b
-    if try(b.website.enabled, false)
-  }
+  count = var.website_enabled ? 1 : 0
 
-  bucket = aws_s3_bucket.this[each.key].id
+  bucket = aws_s3_bucket.this.id
 
   index_document {
-    suffix = each.value.website.index_document
+    suffix = var.index_document
   }
 
   error_document {
-    key = each.value.website.error_document
+    key = var.error_document
   }
 }
 
-
 resource "aws_s3_bucket_cors_configuration" "this" {
-  for_each = {
-    for b in var.buckets : b.name => b
-    if try(length(b.cors_rules), 0) > 0
-  }
+  count = length(var.cors_rules) > 0 ? 1 : 0
 
-  bucket = aws_s3_bucket.this[each.key].id
+  bucket = aws_s3_bucket.this.id
 
   dynamic "cors_rule" {
-    for_each = each.value.cors_rules
+    for_each = var.cors_rules
     content {
       allowed_methods = cors_rule.value.allowed_methods
       allowed_origins = cors_rule.value.allowed_origins
@@ -90,43 +72,24 @@ resource "aws_s3_bucket_cors_configuration" "this" {
   }
 }
 
-
 resource "aws_s3_bucket_policy" "this" {
-  for_each = {
-    for b in var.buckets : b.name => b
-    if try(b.policy, null) != null
-  }
+  count = var.bucket_policy != null ? 1 : 0
 
-  bucket = aws_s3_bucket.this[each.key].id
-  policy = each.value.policy
+  bucket = aws_s3_bucket.this.id
+  policy = var.bucket_policy
 }
-
 
 locals {
-  upload_buckets = {
-    for b in var.buckets : b.name => b
-    if try(b.upload.enabled, false)
-  }
-
-  # Aplanar lista de archivos por bucket
-  upload_objects = merge([
-    for bucket_name, bucket in local.upload_buckets : {
-      for file_path in fileset(bucket.upload.source_dir, "**") :
-      "${bucket_name}/${file_path}" => {
-        bucket = bucket_name
-        file   = file_path
-      }
-    }
-  ]...)
+  upload_files = var.upload_enabled ? fileset(var.upload_source_dir, "**") : []
 }
 
-resource "aws_s3_object" "spa_uploads" {
-  for_each = local.upload_objects
+resource "aws_s3_object" "uploads" {
+  for_each = toset(local.upload_files)
 
-  bucket = aws_s3_bucket.this[each.value.bucket].id
-  key    = each.value.file
-  source = "${local.upload_buckets[each.value.bucket].upload.source_dir}/${each.value.file}"
-  etag   = filemd5("${local.upload_buckets[each.value.bucket].upload.source_dir}/${each.value.file}")
+  bucket = aws_s3_bucket.this.id
+  key    = each.value
+  source = "${var.upload_source_dir}/${each.value}"
+  etag   = filemd5("${var.upload_source_dir}/${each.value}")
 
-  content_type = lookup(var.mime_types, regex("[^.]+$", each.value.file), null)
+  content_type = lookup(var.mime_types, regex("[^.]+$", each.value), null)
 }

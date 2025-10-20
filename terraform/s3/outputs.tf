@@ -1,20 +1,29 @@
-output "bucket_ids" {
-  description = "ID de cada bucket creado"
-  value = {
-    for name, bucket in aws_s3_bucket.this :
-    name => bucket.id
-  }
+output "bucket_id" {
+  description = "ID of the S3 bucket"
+  value       = aws_s3_bucket.this.id
 }
 
-output "bucket_arns" {
-  description = "ARN de cada bucket creado"
-  value = {
-    for name, bucket in aws_s3_bucket.this :
-    name => bucket.arn
-  }
+output "bucket_arn" {
+  description = "ARN of the S3 bucket"
+  value       = aws_s3_bucket.this.arn
 }
 
-output "bucket_names" {
-  description = "Nombres de buckets creados"
-  value = [for b in aws_s3_bucket.this : b.bucket]
+output "bucket_name" {
+  description = "Name of the S3 bucket"
+  value       = aws_s3_bucket.this.bucket
+}
+
+output "bucket_domain_name" {
+  description = "Domain name of the S3 bucket"
+  value       = aws_s3_bucket.this.bucket_domain_name
+}
+
+output "bucket_regional_domain_name" {
+  description = "Regional domain name of the S3 bucket"
+  value       = aws_s3_bucket.this.bucket_regional_domain_name
+}
+
+output "website_endpoint" {
+  description = "Website endpoint (if website hosting is enabled)"
+  value       = var.website_enabled ? aws_s3_bucket_website_configuration.this[0].website_endpoint : null
 }

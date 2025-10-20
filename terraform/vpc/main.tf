@@ -64,44 +64,6 @@ resource "aws_route_table_association" "this" {
   route_table_id = aws_route_table.this[each.value.rt_name].id
 }
 
-
-
-locals {
-  interface_endpoints = [for ep in var.vpc_endpoints_config : ep if lower(ep.type) == "interface"]
-}
-
-resource "aws_security_group" "vpce" {
-  count  = length(local.interface_endpoints) > 0 ? 1 : 0
-  vpc_id = aws_vpc.this.id
-
-  tags = merge(
-    {
-      Name = "${var.vpc_config.name}-vpce-sg"
-    },
-    var.tags
-  )
-}
-
-resource "aws_security_group_rule" "vpce_ingress_https" {
-  count             = length(local.interface_endpoints) > 0 ? 1 : 0
-  type              = "ingress"
-  from_port         = 443
-  to_port           = 443
-  protocol          = "tcp"
-  cidr_blocks       = [var.vpc_config.cidr]
-  security_group_id = aws_security_group.vpce[0].id
-}
-
-resource "aws_security_group_rule" "vpce_egress_all" {
-  count             = length(local.interface_endpoints) > 0 ? 1 : 0
-  type              = "egress"
-  from_port         = 0
-  to_port           = 0
-  protocol          = "-1"
-  cidr_blocks       = ["0.0.0.0/0"]
-  security_group_id = aws_security_group.vpce[0].id
-}
-
 resource "aws_vpc_endpoint" "this" {
   for_each = { for e in var.vpc_endpoints_config : e.service => e }
 
@@ -112,11 +74,10 @@ resource "aws_vpc_endpoint" "this" {
   route_table_ids = lower(each.value.type) == "gateway" ? values(aws_route_table.this)[*].id : null
 
   subnet_ids = lower(each.value.type) == "interface" ? coalesce(
-      try([for s in each.value.subnets : aws_subnet.this[s].id], null),
-      values(aws_subnet.this)[*].id
-    ) : null
+    try([for s in each.value.subnets : aws_subnet.this[s].id], null),
+    values(aws_subnet.this)[*].id
+  ) : null
 
-  security_group_ids  = lower(each.value.type) == "interface" ? [aws_security_group.vpce[0].id] : null
   private_dns_enabled = lower(each.value.type) == "interface" ? each.value.private_dns : null
 
   tags = merge(

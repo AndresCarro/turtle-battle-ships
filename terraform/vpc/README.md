@@ -1,29 +1,29 @@
-# VPC Module — Parametrizable
+# VPC Module — Configurable
 
-Este módulo permite crear toda la red de AWS desde un input declarativo:
+This module allows you to create the entire AWS network from a declarative input:
 
 - 🌐 VPC
-- 🟨 Subnets dinámicas (privadas y/o públicas)
+- 🟨 Dynamic subnets (private and/or public)
 - 🧭 Route tables
-- 🔗 Asociaciones RT ↔ Subnets
+- 🔗 Route table ↔ Subnet associations
 - 🧩 VPC Endpoints (Gateway + Interface)
-- 🔐 SG para Interface Endpoints
+- 🔐 Security groups for Interface Endpoints
 
 ---
 
-## 🧠 Variables principales
+## 🧠 Main Variables
 
-| Nombre                  | Tipo                       | Descripción                                                               |
+| Name                  | Type                       | Description                                                               |
 |---------------------------|------------------------------|----------------------------------------------------------------------------|
-| `vpc_config`              | object                      | Configuración base de la VPC (nombre, CIDR, región).                       |
-| `subnets_config`          | list(object)                | Lista de subnets a crear.                                                 |
-| `route_tables_config`     | map(list(string))           | Mapa de route tables y subnets asociadas.                                 |
-| `vpc_endpoints_config`    | list(object)                | Lista de endpoints VPC (S3, Dynamo, ECR, etc).                             |
-| `tags`                    | map(string)                 | Tags opcionales.                                                          |
+| `vpc_config`              | object                      | Base VPC configuration (name, CIDR, region).                       |
+| `subnets_config`          | list(object)                | List of subnets to create.                                                 |
+| `route_tables_config`     | map(list(string))           | Map of route tables and associated subnets.                                 |
+| `vpc_endpoints_config`    | list(object)                | List of VPC endpoints (S3, DynamoDB, ECR, etc).                             |
+| `tags`                    | map(string)                 | Optional tags.                                                          |
 
 ---
 
-## 🧾 Ejemplo de uso en el root
+## 🧾 Usage Example
 
 ```hcl
 module "network" {

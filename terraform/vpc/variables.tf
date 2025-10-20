@@ -1,5 +1,5 @@
 variable "vpc_config" {
-  description = "Configuración básica de la VPC"
+  description = "Basic VPC configuration"
   type = object({
     name   = string
     cidr   = string
@@ -8,7 +8,7 @@ variable "vpc_config" {
 }
 
 variable "subnets_config" {
-  description = "Lista de subnets a crear"
+  description = "List of subnets to create"
   type = list(object({
     name = string
     cidr = string
@@ -18,17 +18,17 @@ variable "subnets_config" {
 }
 
 variable "route_tables_config" {
-  description = "Mapa de route tables a subnets asociadas"
+  description = "Map of route tables to associated subnets"
   type        = map(list(string))
 }
 
 variable "vpc_endpoints_config" {
-  description = "Lista de endpoints VPC"
+  description = "List of VPC endpoints"
   type = list(object({
-    service      = string
-    type         = string
-    subnets      = optional(list(string))
-    private_dns  = optional(bool, true)
+    service     = string
+    type        = string
+    subnets     = optional(list(string))
+    private_dns = optional(bool, true)
   }))
 }
 
