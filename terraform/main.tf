@@ -4,6 +4,10 @@ terraform {
       source  = "hashicorp/aws"
       version = "~> 5.0"
     }
+    docker = {
+      source  = "kreuzwerker/docker"
+      version = "~> 3.0"
+    }
   }
   required_version = ">= 1.5.0"
 }
@@ -12,6 +16,19 @@ provider "aws" {
   region                   = var.region
   shared_credentials_files = ["${path.module}/aws-credentials"]
   profile                  = "default"
+}
+
+# Shared data sources and provider for building and pushing Docker images to ECR.
+data "aws_caller_identity" "current" {}
+
+data "aws_ecr_authorization_token" "token" {}
+
+provider "docker" {
+  registry_auth {
+    address  = "${data.aws_caller_identity.current.account_id}.dkr.ecr.${var.region}.amazonaws.com"
+    username = data.aws_ecr_authorization_token.token.user_name
+    password = data.aws_ecr_authorization_token.token.password
+  }
 }
 
 # Data Sources
@@ -145,7 +162,7 @@ module "lambda_functions" {
       module.vpc.subnets[subnet_name]
     ]
     # TODO: ADD SG FOR DATABASE AFTER CREATED BY RDS MODULE
-    security_group_ids = merge(each.value.security_group_ids, ["sg-db REPLACE"])
+    security_group_ids = concat(each.value.security_group_ids, ["sg-db REPLACE"])
   } : null
 
   tags = merge(
@@ -184,7 +201,7 @@ module "backend" {
 
   # Additional security groups
   # TODO: ADD SG FOR DATABASE AFTER CREATED BY RDS MODULE
-  security_group_ids = merge(var.backend_config.security_group_ids, ["sg-db REPLACE"])
+  security_group_ids = concat(var.backend_config.security_group_ids, ["sg-db REPLACE"])
 
   # Health check configuration
   health_check_path                = var.backend_config.health_check_path
