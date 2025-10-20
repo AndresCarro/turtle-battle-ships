@@ -90,6 +90,7 @@ module "vpc" {
 
 # TODO: GENERATE RDS AND RDS PROXY
 
+# DynamoDB Module
 module "dynamodb_shots" {
   source = "./dynamodb"
 
@@ -129,6 +130,7 @@ module "lambda_functions" {
   memory_size = each.value.memory_size
   timeout     = each.value.timeout
 
+  # TODO: ADD ENVIRONMENT_VARIABLES
   environment_variables = merge(
     each.value.environment_variables,
     {
@@ -142,7 +144,8 @@ module "lambda_functions" {
       for subnet_name in each.value.subnet_names :
       module.vpc.subnets[subnet_name]
     ]
-    security_group_ids = each.value.security_group_ids
+    # TODO: ADD SG FOR DATABASE AFTER CREATED BY RDS MODULE
+    security_group_ids = merge(each.value.security_group_ids, ["sg-db REPLACE"])
   } : null
 
   tags = merge(
@@ -180,7 +183,8 @@ module "backend" {
   assign_public_ip = false
 
   # Additional security groups
-  security_group_ids = var.backend_config.security_group_ids
+  # TODO: ADD SG FOR DATABASE AFTER CREATED BY RDS MODULE
+  security_group_ids = merge(var.backend_config.security_group_ids, ["sg-db REPLACE"])
 
   # Health check configuration
   health_check_path                = var.backend_config.health_check_path
@@ -190,6 +194,7 @@ module "backend" {
   health_check_unhealthy_threshold = 3
 
   # Environment variables
+  # TODO: ADD ENVIRONMENT_VARIABLES
   environment_variables = merge(
     var.backend_config.environment_variables,
     {
@@ -232,7 +237,28 @@ module "replays_bucket" {
   tags = local.tags
 }
 
-# TODO: GENERATE DIST TO BE UPLOADED TO FRONTEND BUCKET
+# Build Frontend React Project
+resource "terraform_data" "build_frontend" {
+  triggers_replace = {
+    # TODO: REPLACE WITH PROPER URLS ONCE API GATEWAYS ARE ADDED
+    backend_url    = var.backend_config.enabled ? "http://${module.backend[0].load_balancer_dns}" : "http://localhost:3000"
+    websockets_url = var.backend_config.enabled ? "ws://${module.backend[0].load_balancer_dns}" : "ws://localhost:3001"
+
+    # Also rebuild if the build script itself changes
+    build_script_hash = filesha256("${path.module}/build-frontend.sh")
+  }
+
+  provisioner "local-exec" {
+    command     = "${path.module}/build-frontend.sh '${self.triggers_replace.backend_url}' '${self.triggers_replace.websockets_url}' '${path.module}/../frontend'"
+    working_dir = path.module
+  }
+
+  # TODO: REPLACE WITH PROPER DEPENDENCIES ONCE API GATEWAYS ARE ADDED
+  depends_on = [
+    module.backend,
+    module.lambda_functions,
+  ]
+}
 
 # S3 Bucket for Frontend (SPA)
 module "frontend_bucket" {
@@ -275,4 +301,9 @@ module "frontend_bucket" {
   upload_source_dir = var.frontend_bucket.upload_dir
 
   tags = local.tags
+
+  # Ensure frontend is built before attempting to upload
+  depends_on = [
+    terraform_data.build_frontend
+  ]
 }
