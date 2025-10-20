@@ -1,0 +1,14 @@
+output "rds_endpoint" {
+  description = "RDS endpoint address"
+  value       = module.rds.db_instance_address
+}
+
+output "rds_port" {
+  description = "Database port"
+  value       = module.rds.db_instance_port
+}
+
+output "rds_name" {
+  description = "Database name"
+  value       = module.rds.db_instance_name
+}

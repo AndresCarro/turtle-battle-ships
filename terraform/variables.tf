@@ -79,3 +79,31 @@ variable "s3_buckets" {
     }))
   }))
 }
+
+variable "rds" {
+  description = "RDS configuration object"
+  type = object({
+    identifier             = string
+    engine                 = string
+    region                 = string
+    identifier             = string
+    engine_version         = string
+    instance_class         = string
+    allocated_storage      = number
+    max_allocated_storage  = number
+    backup_retention_days  = number
+    deletion_protection    = bool
+    master_username        = string
+    master_password        = string
+    database_name          = string
+    port                   = optional(number, 5432)
+    db_subnet_group_name   = string
+    vpc_security_group_ids = list(string)
+    proxy = optional(object({
+      enabled        = bool
+      role_arn       = string
+      secret_arn     = string
+      require_tls    = bool
+    }), null)
+  })
+}

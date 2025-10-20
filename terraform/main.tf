@@ -88,3 +88,50 @@ output "s3_bucket_arns" {
   description = "ARNs de los buckets creados"
   value       = module.s3.bucket_arns
 }
+
+
+# Modulo externo de RDS y RDS Proxy
+module "rds" {
+  source  = "terraform-aws-modules/rds/aws"
+  version                 = var.rds.version
+  
+  region                  = var.region
+
+  identifier              = var.rds.identifier
+  engine                  = var.rds.engine
+  engine_version          = var.rds.engine_version
+  instance_class          = var.rds.instance_class
+  allocated_storage       = var.rds.allocated_storage
+  max_allocated_storage   = var.rds.max_allocated_storage
+  backup_retention_period = var.rds.backup_retention_days
+  deletion_protection     = var.rds.deletion_protection
+
+  db_name                 = var.rds.database_name
+  username                = var.rds.master_username
+  password                = var.rds.master_password
+  port                    = 5432
+
+  multi_az               = true
+  publicly_accessible    = false
+  storage_encrypted      = true
+  skip_final_snapshot    = true
+  vpc_security_group_ids = var.rds.vpc_security_group_ids
+  db_subnet_group_name   = var.rds.db_subnet_group_name
+}
+
+module "rds_proxy" {
+  source  = "terraform-aws-modules/rds-proxy/aws"
+  version                = = var.rds.proxy.version
+
+  name                   = "${var.rds.identifier}-proxy"
+  engine_family          = var.rds.engine 
+  role_arn               = var.rds.proxy.role_arn
+  vpc_security_group_ids = var.rds.vpc_security_group_ids
+  vpc_subnet_ids         = var.rds.vpc_subnet_group_ids
+
+  auth = [{
+    auth_scheme = "SECRETS"
+    secret_arn  = var.rds.secret_arn
+    iam_auth    = "DISABLED"
+  }]
+}
