@@ -160,3 +160,6 @@ variable "lambda_functions" {
     security_group_ids    = list(string)
   }))
 }
+
+# Rds and Rds Proxy configuration 
+rds = { engine = "postgres" identifier = "turtle-battle-ships-sql" engine_version = "17.4" family = "postgres17" instance_class = "db.t3.micro" allocated_storage = 20 max_allocated_storage = 40 backup_retention_days = 7 deletion_protection = false master_username = "postgres" master_password = "turtlebattleshipssql" database_name = "turtlebattleship" port = 5432 subnet_names = ["private-logic-1", "private-logic-2"] vpc_security_group_ids = [] proxy = { engine_family = "POSTGRESQL" enabled = true secret_arn = "arn:aws:secretsmanager:us-east-1:123456789012:secret:rds-creds" require_tls = true role_arn = "arn:aws:iam::123456789012:role/LabRole" } } my_ip_cidr = "181.165.171.229/32" 
