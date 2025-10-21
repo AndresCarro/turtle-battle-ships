@@ -25,95 +25,7 @@ resource "aws_cloudwatch_log_group" "websocket_logs" {
   tags = var.tags
 }
 
-# Application Load Balancer (ALB) for Fargate
-resource "aws_lb" "alb" {
-  name               = var.alb_name
-  internal           = var.alb_internal
-  load_balancer_type = "application"
-  security_groups    = var.alb_security_group_ids
-  subnets            = var.alb_subnet_ids
-
-  enable_deletion_protection       = var.alb_deletion_protection
-  enable_cross_zone_load_balancing = true
-  enable_http2                     = true
-
-  tags = merge(
-    var.tags,
-    {
-      Name = var.alb_name
-    }
-  )
-}
-
-# ALB Target Group for Fargate
-resource "aws_lb_target_group" "fargate_tg" {
-  name        = var.target_group_name
-  port        = var.fargate_port
-  protocol    = "HTTP"
-  target_type = "ip"
-  vpc_id      = var.vpc_id
-
-  health_check {
-    enabled             = true
-    healthy_threshold   = var.health_check_healthy_threshold
-    unhealthy_threshold = var.health_check_unhealthy_threshold
-    interval            = var.health_check_interval
-    timeout             = var.health_check_timeout
-    path                = var.health_check_path
-    protocol            = "HTTP"
-    matcher             = var.health_check_matcher
-  }
-
-  deregistration_delay = var.deregistration_delay
-
-  #   # Enable sticky sessions for Socket.io (useful for scaling)
-  #   stickiness {
-  #     enabled         = var.enable_sticky_sessions
-  #     type            = "lb_cookie"
-  #     cookie_duration = var.sticky_session_duration
-  #   }
-  # 
-  #   tags = merge(
-  #     var.tags,
-  #     {
-  #       Name = var.target_group_name
-  #     }
-  #   )
-}
-
-# ALB Listener (HTTP)
-resource "aws_lb_listener" "alb_listener" {
-  load_balancer_arn = aws_lb.alb.arn
-  port              = var.fargate_port
-  protocol          = "HTTP"
-
-  default_action {
-    type             = "forward"
-    target_group_arn = aws_lb_target_group.fargate_tg.arn
-  }
-
-  tags = var.tags
-}
-
-# Optional: HTTPS Listener (if SSL certificate is provided)
-resource "aws_lb_listener" "alb_listener_https" {
-  count = var.ssl_certificate_arn != null ? 1 : 0
-
-  load_balancer_arn = aws_lb.alb.arn
-  port              = 443
-  protocol          = "HTTPS"
-  ssl_policy        = var.ssl_policy
-  certificate_arn   = var.ssl_certificate_arn
-
-  default_action {
-    type             = "forward"
-    target_group_arn = aws_lb_target_group.fargate_tg.arn
-  }
-
-  tags = var.tags
-}
-
-# VPC Link for API Gateway to access ALB
+# VPC Link for API Gateway to access existing ALB
 resource "aws_apigatewayv2_vpc_link" "vpc_link" {
   name               = var.vpc_link_name
   security_group_ids = var.vpc_link_security_group_ids
@@ -127,12 +39,12 @@ resource "aws_apigatewayv2_vpc_link" "vpc_link" {
   )
 }
 
-# API Gateway Integration with VPC Link
+# API Gateway Integration with existing ALB via VPC Link
 resource "aws_apigatewayv2_integration" "alb_integration" {
   api_id             = aws_apigatewayv2_api.websocket_api.id
   integration_type   = "HTTP_PROXY"
   integration_method = "ANY"
-  integration_uri    = aws_lb_listener.alb_listener.arn
+  integration_uri    = var.alb_listener_arn
   connection_type    = "VPC_LINK"
   connection_id      = aws_apigatewayv2_vpc_link.vpc_link.id
 

@@ -233,7 +233,66 @@ module "backend" {
   )
 }
 
-# TODO: GENERATE API GATEWAYS FOR LAMBDAS AND BACKEND
+# REST API Gateway for Lambda Functions
+module "rest_api" {
+  source = "./api-gateway/rest-api"
+
+  api_name        = "${var.project_name}-rest-api"
+  api_description = "REST API Gateway for Turtle Battleships Lambda functions"
+  stage_name      = var.environment
+
+  # Lambda integrations - create endpoints for each Lambda function
+  lambda_integrations = [
+    {
+      path_part    = "users"
+      http_methods = ["POST"]
+      lambda_arn   = module.lambda_functions["turtle-battleships-create-user"].function_invoke_arn
+      lambda_name  = module.lambda_functions["turtle-battleships-create-user"].function_name
+      enable_cors  = true
+    },
+    {
+      path_part    = "games"
+      http_methods = ["POST"]
+      lambda_arn   = module.lambda_functions["turtle-battleships-create-game-room"].function_invoke_arn
+      lambda_name  = module.lambda_functions["turtle-battleships-create-game-room"].function_name
+      enable_cors  = true
+    },
+    {
+      path_part    = "games"
+      http_methods = ["GET"]
+      lambda_arn   = module.lambda_functions["turtle-battleships-list-game-rooms"].function_invoke_arn
+      lambda_name  = module.lambda_functions["turtle-battleships-list-game-rooms"].function_name
+      enable_cors  = true
+    },
+    {
+      path_part    = "games"
+      http_methods = ["PUT"]
+      lambda_arn   = module.lambda_functions["turtle-battleships-join-room"].function_invoke_arn
+      lambda_name  = module.lambda_functions["turtle-battleships-join-room"].function_name
+      enable_cors  = true
+    }
+  ]
+
+  # CloudWatch logging configuration
+  logging_level      = "INFO"
+  log_retention_days = 14
+  metrics_enabled    = true
+
+  # Throttling configuration
+  throttling_burst_limit = 5000
+  throttling_rate_limit  = 10000
+
+  tags = merge(
+    local.tags,
+    {
+      Service = "rest-api"
+    }
+  )
+
+  depends_on = [
+    module.lambda_functions
+  ]
+}
 
 # S3 Bucket for Game Replays
 module "replays_bucket" {
@@ -324,3 +383,5 @@ module "frontend_bucket" {
     terraform_data.build_frontend
   ]
 }
+
+# TODO: Give lambda funcitons a security group to access rds

@@ -95,6 +95,21 @@ resource "aws_api_gateway_method_settings" "settings" {
 
 # Lambda Integrations
 locals {
+  # Get unique path parts (allowing duplicates for different methods)
+  unique_paths = toset([
+    for integration in var.lambda_integrations :
+    integration.path_part
+  ])
+
+  # Collect all HTTP methods for each path (for CORS)
+  path_methods = {
+    for path in local.unique_paths :
+    path => distinct(flatten([
+      for integration in var.lambda_integrations :
+      integration.http_methods if integration.path_part == path && integration.enable_cors
+    ]))
+  }
+
   # Flatten lambda integrations for resource creation
   lambda_routes = flatten([
     for integration in var.lambda_integrations : [
@@ -119,14 +134,11 @@ locals {
 
 # API Gateway Resource (path)
 resource "aws_api_gateway_resource" "resource" {
-  for_each = {
-    for integration in var.lambda_integrations :
-    integration.path_part => integration
-  }
+  for_each = local.unique_paths
 
   rest_api_id = aws_api_gateway_rest_api.api.id
   parent_id   = aws_api_gateway_rest_api.api.root_resource_id
-  path_part   = each.value.path_part
+  path_part   = each.value
 }
 
 # API Gateway Method
@@ -159,7 +171,7 @@ resource "aws_api_gateway_integration" "lambda_integration" {
 resource "aws_lambda_permission" "api_gateway_permission" {
   for_each = local.lambda_routes_map
 
-  statement_id  = "AllowAPIGatewayInvoke-${each.key}"
+  statement_id  = "AllowAPIGatewayInvoke-${replace(each.key, "/", "-")}"
   action        = "lambda:InvokeFunction"
   function_name = each.value.lambda_name
   principal     = "apigateway.amazonaws.com"
@@ -204,28 +216,28 @@ resource "aws_api_gateway_integration_response" "lambda_integration_response" {
 
 # CORS Support - OPTIONS method
 resource "aws_api_gateway_method" "options_method" {
-  for_each = {
+  for_each = toset([
     for integration in var.lambda_integrations :
-    integration.path_part => integration
+    integration.path_part
     if integration.enable_cors
-  }
+  ])
 
   rest_api_id   = aws_api_gateway_rest_api.api.id
-  resource_id   = aws_api_gateway_resource.resource[each.key].id
+  resource_id   = aws_api_gateway_resource.resource[each.value].id
   http_method   = "OPTIONS"
   authorization = "NONE"
 }
 
 resource "aws_api_gateway_integration" "options_integration" {
-  for_each = {
+  for_each = toset([
     for integration in var.lambda_integrations :
-    integration.path_part => integration
+    integration.path_part
     if integration.enable_cors
-  }
+  ])
 
   rest_api_id = aws_api_gateway_rest_api.api.id
-  resource_id = aws_api_gateway_resource.resource[each.key].id
-  http_method = aws_api_gateway_method.options_method[each.key].http_method
+  resource_id = aws_api_gateway_resource.resource[each.value].id
+  http_method = aws_api_gateway_method.options_method[each.value].http_method
   type        = "MOCK"
 
   request_templates = {
@@ -234,15 +246,15 @@ resource "aws_api_gateway_integration" "options_integration" {
 }
 
 resource "aws_api_gateway_method_response" "options_response" {
-  for_each = {
+  for_each = toset([
     for integration in var.lambda_integrations :
-    integration.path_part => integration
+    integration.path_part
     if integration.enable_cors
-  }
+  ])
 
   rest_api_id = aws_api_gateway_rest_api.api.id
-  resource_id = aws_api_gateway_resource.resource[each.key].id
-  http_method = aws_api_gateway_method.options_method[each.key].http_method
+  resource_id = aws_api_gateway_resource.resource[each.value].id
+  http_method = aws_api_gateway_method.options_method[each.value].http_method
   status_code = "200"
 
   response_parameters = {
@@ -257,20 +269,20 @@ resource "aws_api_gateway_method_response" "options_response" {
 }
 
 resource "aws_api_gateway_integration_response" "options_integration_response" {
-  for_each = {
+  for_each = toset([
     for integration in var.lambda_integrations :
-    integration.path_part => integration
+    integration.path_part
     if integration.enable_cors
-  }
+  ])
 
   rest_api_id = aws_api_gateway_rest_api.api.id
-  resource_id = aws_api_gateway_resource.resource[each.key].id
-  http_method = aws_api_gateway_method.options_method[each.key].http_method
-  status_code = aws_api_gateway_method_response.options_response[each.key].status_code
+  resource_id = aws_api_gateway_resource.resource[each.value].id
+  http_method = aws_api_gateway_method.options_method[each.value].http_method
+  status_code = aws_api_gateway_method_response.options_response[each.value].status_code
 
   response_parameters = {
     "method.response.header.Access-Control-Allow-Headers" = "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
-    "method.response.header.Access-Control-Allow-Methods" = "'${join(",", each.value.http_methods)},OPTIONS'"
+    "method.response.header.Access-Control-Allow-Methods" = "'${join(",", local.path_methods[each.value])},OPTIONS'"
     "method.response.header.Access-Control-Allow-Origin"  = "'*'"
   }
 

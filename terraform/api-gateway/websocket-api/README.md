@@ -1,80 +1,147 @@
-# WebSocket API Gateway Module for Fargate
+# WebSocket API Gateway Module# WebSocket API Gateway Module for Fargate
 
-This module creates an AWS API Gateway WebSocket API configured to connect to a Fargate service through a Network Load Balancer (NLB) and VPC Link. Perfect for real-time applications like your Socket.io backend.
+This Terraform module creates an AWS API Gateway v2 WebSocket API that integrates with an **existing Application Load Balancer (ALB)** via a VPC Link.This module creates an AWS API Gateway WebSocket API configured to connect to a Fargate service through a Network Load Balancer (NLB) and VPC Link. Perfect for real-time applications like your Socket.io backend.
 
-## Features
+## Features## Features
 
-- ✅ AWS API Gateway V2 (WebSocket)
-- ✅ Network Load Balancer (NLB) for Fargate integration
-- ✅ VPC Link for private connectivity
-- ✅ Target Group with health checks
-- ✅ CloudWatch logging and metrics
+- **WebSocket API Gateway**: Creates a WebSocket API for real-time bidirectional communication- ✅ AWS API Gateway V2 (WebSocket)
+
+- **VPC Link Integration**: Securely connects to an existing private ALB without exposing it to the internet- ✅ Network Load Balancer (NLB) for Fargate integration
+
+- **Flexible Routing**: Supports $connect, $disconnect, $default routes, plus custom routes- ✅ VPC Link for private connectivity
+
+- **CloudWatch Logging**: Integrated logging for monitoring and debugging- ✅ Target Group with health checks
+
+- **Auto Deployment**: Optionally auto-deploy changes to the stage- ✅ CloudWatch logging and metrics
+
 - ✅ Standard WebSocket routes ($connect, $disconnect, $default)
-- ✅ Support for custom routes
+
+## Important Notes- ✅ Support for custom routes
+
 - ✅ Throttling configuration
-- ✅ Automatic deployment support
 
-## Architecture
+⚠️ **This module does NOT create an ALB**. It expects you to provide an existing ALB listener ARN (typically from an ECS Fargate module or similar). The WebSocket API Gateway will forward traffic to this existing ALB via a VPC Link.- ✅ Automatic deployment support
 
-```
-Client (WebSocket)
-    ↓
-API Gateway (WebSocket)
-    ↓
-VPC Link
-    ↓
-Network Load Balancer (NLB)
-    ↓
-Fargate Service (Socket.io backend)
-```
+## Architecture## Architecture
 
-## Usage
+````
 
-```hcl
+InternetClient (WebSocket)
+
+    │    ↓
+
+    └─→ WebSocket API Gateway (Internet-facing)API Gateway (WebSocket)
+
+            │    ↓
+
+            └─→ VPC LinkVPC Link
+
+                    │    ↓
+
+                    └─→ Existing Application Load Balancer (Private)Network Load Balancer (NLB)
+
+                            │    ↓
+
+                            └─→ Target GroupFargate Service (Socket.io backend)
+
+                                    │```
+
+                                    └─→ ECS Fargate Tasks
+
+```## Usage
+
+
+
+## Usage Example with ECS Fargate```hcl
+
 module "websocket_api" {
+
+```hcl  source = "./api-gateway/websocket-api"
+
+# ECS Fargate module (creates ALB)
+
+module "backend" {  # API Configuration
+
+  source = "./ecs-fargate"  api_name        = "turtle-battleships-websocket"
+
+    api_description = "WebSocket API for real-time game communication"
+
+  service_name         = "my-backend"  stage_name      = "prod"
+
+  enable_load_balancer = true  auto_deploy     = true
+
+  # ... other configuration
+
+}  # Network Load Balancer
+
+  nlb_name       = "turtle-battleships-nlb"
+
+# WebSocket API Gateway (uses existing ALB)  nlb_internal   = false  # Set to true if you want internal NLB
+
+module "websocket_api" {  nlb_subnet_ids = module.vpc.public_subnet_ids
+
   source = "./api-gateway/websocket-api"
 
-  # API Configuration
-  api_name        = "turtle-battleships-websocket"
-  api_description = "WebSocket API for real-time game communication"
-  stage_name      = "prod"
-  auto_deploy     = true
-
-  # Network Load Balancer
-  nlb_name       = "turtle-battleships-nlb"
-  nlb_internal   = false  # Set to true if you want internal NLB
-  nlb_subnet_ids = module.vpc.public_subnet_ids
-
   # Target Group (Fargate)
-  target_group_name = "turtle-battleships-tg"
-  fargate_port      = 3000
-  vpc_id            = module.vpc.vpc_id
 
-  # VPC Link
+  api_name             = "my-websocket-api"  target_group_name = "turtle-battleships-tg"
+
+  alb_listener_arn     = module.backend.alb_http_listener_arn  # Use existing ALB  fargate_port      = 3000
+
+  vpc_link_name        = "my-vpc-link"  vpc_id            = module.vpc.vpc_id
+
+  vpc_link_subnet_ids  = var.private_subnet_ids
+
+  vpc_link_security_group_ids = [module.backend.security_group_id]  # VPC Link
+
   vpc_link_name               = "turtle-battleships-vpc-link"
-  vpc_link_subnet_ids         = module.vpc.private_subnet_ids
-  vpc_link_security_group_ids = [aws_security_group.fargate_sg.id]
+
+  tags = local.tags  vpc_link_subnet_ids         = module.vpc.private_subnet_ids
+
+}  vpc_link_security_group_ids = [aws_security_group.fargate_sg.id]
+
+```
 
   # Optional: Custom routes
-  custom_routes = {
+
+## Inputs  custom_routes = {
+
     "joinGame" = {
-      route_response_selection_expression = null
-    }
-    "makeMove" = {
-      route_response_selection_expression = null
-    }
-  }
+
+| Name | Description | Type | Required |      route_response_selection_expression = null
+
+|------|-------------|------|:--------:|    }
+
+| api_name | Name of the WebSocket API Gateway | `string` | yes |    "makeMove" = {
+
+| alb_listener_arn | ARN of existing ALB HTTP listener | `string` | yes |      route_response_selection_expression = null
+
+| vpc_link_name | Name of the VPC Link | `string` | yes |    }
+
+| vpc_link_subnet_ids | Subnet IDs for VPC Link | `list(string)` | yes |  }
+
+| vpc_link_security_group_ids | Security group IDs for VPC Link | `list(string)` | yes |
 
   # Logging and throttling
-  log_retention_days     = 7
-  logging_level          = "INFO"
-  throttling_burst_limit = 1000
-  throttling_rate_limit  = 500
 
-  tags = {
-    Project     = "turtle-battleships"
+## Outputs  log_retention_days     = 7
+
+  logging_level          = "INFO"
+
+| Name | Description |  throttling_burst_limit = 1000
+
+|------|-------------|  throttling_rate_limit  = 500
+
+| websocket_stage_invoke_url | Full WebSocket connection URL |
+
+| websocket_api_id | API Gateway ID |  tags = {
+
+| vpc_link_id | VPC Link ID |    Project     = "turtle-battleships"
+
     Environment = "production"
-  }
+
+See `variables.tf` and `outputs.tf` for complete documentation.  }
+
 }
 ```
 
@@ -191,3 +258,4 @@ This module uses NLB (Network Load Balancer) because:
 1. **Connection timeout**: Check security groups and VPC Link subnet configuration
 2. **502 errors**: Verify Fargate service is healthy and target group health checks pass
 3. **Integration errors**: Check CloudWatch logs at `/aws/apigatewayv2/[api-name]`
+````
