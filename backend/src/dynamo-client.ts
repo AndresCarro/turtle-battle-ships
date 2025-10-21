@@ -1,30 +1,41 @@
 import { CreateTableCommand, DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient } from '@aws-sdk/lib-dynamodb';
 
-const region = process.env.DYNAMO_REGION || 'us-east-1';
-const endpoint =
-  process.env.DYNAMO_ENDPOINT ||
-  `http://localhost:${process.env.DYNAMO_PORT || 8000}`;
-const accessKeyId = process.env.DYNAMO_ACCESS_KEY_ID || 'AKIAIDIDIDIDIDIDIDID';
-const secretAccessKey =
-  process.env.DYNAMO_SECRET_ACCESS_KEY ||
-  'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY';
+// Use different configuration based on environment
+const isProduction = process.env.NODE_ENV === 'production';
+const region = process.env.DYNAMO_REGION || process.env.REGION || 'us-east-1';
 const tableName = process.env.DYNAMO_TABLE_NAME || 'games-table';
 
-const client = new DynamoDBClient({
+const dynamoConfig: any = {
   region,
-  endpoint,
-  credentials: {
-    accessKeyId,
-    secretAccessKey,
-  },
-});
+};
+
+// Only use custom endpoint and credentials in local development
+if (!isProduction && process.env.DYNAMO_ENDPOINT) {
+  dynamoConfig.endpoint = process.env.DYNAMO_ENDPOINT;
+  dynamoConfig.credentials = {
+    accessKeyId: process.env.DYNAMO_ACCESS_KEY_ID || 'AKIAIDIDIDIDIDIDIDID',
+    secretAccessKey:
+      process.env.DYNAMO_SECRET_ACCESS_KEY ||
+      'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
+  };
+}
+
+const client = new DynamoDBClient(dynamoConfig);
 
 export const dynamo = client;
 export const dynamoDoc = DynamoDBDocumentClient.from(client);
 export const TABLE_NAMES = tableName;
 
 export async function initTables() {
+  // Skip table creation in production (table should be managed by Terraform)
+  if (isProduction) {
+    console.log(
+      `ℹ️  Production mode: Skipping table creation. Table ${TABLE_NAMES} should be managed by Terraform.`
+    );
+    return;
+  }
+
   try {
     await dynamo.send(
       new CreateTableCommand({

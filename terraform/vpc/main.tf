@@ -64,6 +64,38 @@ resource "aws_route_table_association" "this" {
   route_table_id = aws_route_table.this[each.value.rt_name].id
 }
 
+# Security group for VPC Interface Endpoints (ECR, Logs, etc.)
+resource "aws_security_group" "vpc_endpoints" {
+  name        = "${var.vpc_config.name}-vpc-endpoints-sg"
+  description = "Security group for VPC interface endpoints"
+  vpc_id      = aws_vpc.this.id
+
+  # Allow HTTPS inbound from VPC CIDR (for ECR, CloudWatch Logs access)
+  ingress {
+    description = "HTTPS from VPC"
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = [var.vpc_config.cidr]
+  }
+
+  # Allow all outbound traffic
+  egress {
+    description = "Allow all outbound"
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = merge(
+    {
+      Name = "${var.vpc_config.name}-vpc-endpoints-sg"
+    },
+    var.tags
+  )
+}
+
 resource "aws_vpc_endpoint" "this" {
   for_each = { for e in var.vpc_endpoints_config : e.service => e }
 
@@ -77,6 +109,9 @@ resource "aws_vpc_endpoint" "this" {
     try([for s in each.value.subnets : aws_subnet.this[s].id], null),
     values(aws_subnet.this)[*].id
   ) : null
+
+  # Attach security group to interface endpoints
+  security_group_ids = lower(each.value.type) == "interface" ? [aws_security_group.vpc_endpoints.id] : null
 
   private_dns_enabled = lower(each.value.type) == "interface" ? each.value.private_dns : null
 

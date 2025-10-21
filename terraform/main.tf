@@ -232,6 +232,7 @@ module "lambda_functions" {
       DB_NAME           = module.rds.database_name
       DB_USER           = module.rds.master_username
       DB_PASSWORD       = module.rds.db_password
+      DB_SSL            = "true"  # Enable SSL/TLS for RDS connections
     }
   )
 
@@ -307,7 +308,13 @@ module "backend" {
       DB_PORT           = tostring(module.rds.primary_instance_port)
       DB_NAME           = module.rds.database_name
       DB_USER           = module.rds.master_username
-      DB_PASSWORD_PARAM = module.rds.db_password_ssm_parameter
+      DB_PASSWORD       = module.rds.db_password
+      DB_SSL            = "true"  # Enable SSL/TLS for RDS connections
+      # S3 Configuration
+      BUCKET_NAME       = module.replays_bucket.bucket_name
+      # DynamoDB Configuration
+      DYNAMO_TABLE_NAME = module.dynamodb_shots.table_name
+      DYNAMO_REGION     = var.region
     }
   )
 
@@ -444,8 +451,8 @@ module "replays_bucket" {
 # Build Frontend React Project
 resource "terraform_data" "build_frontend" {
   triggers_replace = {
-    # Use API Gateway endpoints instead of direct ALB access
-    backend_url    = var.backend_config.enabled ? module.rest_api.api_endpoint : "http://localhost:3000"
+    # Use API Gateway invoke URLs (not ARNs)
+    backend_url    = var.backend_config.enabled ? module.rest_api.invoke_url : "http://localhost:3000"
     websockets_url = var.backend_config.enabled ? module.websocket_api[0].websocket_api_endpoint : "ws://localhost:3001"
 
     # Also rebuild if the build script itself changes

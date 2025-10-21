@@ -15,6 +15,9 @@ import { getReplay } from '../controllers/game-replay-controllers';
 
 const router = Router();
 
+// Health check endpoint for load balancer
+router.get('/ping', (req, res) => res.status(200).send('OK'));
+
 router.get('/', index);
 router.post('/games/', createGame);
 router.put('/games/:id', joinGame);
