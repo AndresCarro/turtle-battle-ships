@@ -162,7 +162,7 @@ module "lambda_functions" {
       module.vpc.subnets[subnet_name]
     ]
     # TODO: ADD SG FOR DATABASE AFTER CREATED BY RDS MODULE
-    security_group_ids = concat(each.value.security_group_ids, ["sg-db REPLACE"])
+    security_group_ids = each.value.security_group_ids
   } : null
 
   tags = merge(
@@ -201,7 +201,7 @@ module "backend" {
 
   # Additional security groups
   # TODO: ADD SG FOR DATABASE AFTER CREATED BY RDS MODULE
-  security_group_ids = concat(var.backend_config.security_group_ids, ["sg-db REPLACE"])
+  security_group_ids = var.backend_config.security_group_ids
 
   # Health check configuration
   health_check_path                = var.backend_config.health_check_path
@@ -294,6 +294,54 @@ module "rest_api" {
   ]
 }
 
+# WebSocket API Gateway for Backend WebSocket Traffic
+module "websocket_api" {
+  count  = var.backend_config.enabled ? 1 : 0
+  source = "./api-gateway/websocket-api"
+
+  api_name        = "${var.project_name}-websocket-api"
+  api_description = "WebSocket API Gateway for Turtle Battleships real-time game communication"
+  stage_name      = var.environment
+
+  # ALB Integration - connect to the Fargate ALB HTTP listener
+  alb_listener_arn = module.backend[0].alb_http_listener_arn
+
+  # VPC Link Configuration - use same subnets as backend for connectivity
+  vpc_link_name = "${var.project_name}-websocket-vpc-link"
+  vpc_link_subnet_ids = [
+    for subnet_name in var.backend_config.subnet_names :
+    module.vpc.subnets[subnet_name]
+  ]
+
+  # Security groups for VPC Link - reuse backend ALB security group
+  vpc_link_security_group_ids = [
+    module.backend[0].alb_security_group_id
+  ]
+
+  # CloudWatch logging configuration
+  logging_level      = "INFO"
+  log_retention_days = 14
+  data_trace_enabled = false
+
+  # Throttling configuration
+  throttling_burst_limit = 5000
+  throttling_rate_limit  = 10000
+
+  # Auto-deploy enabled for development
+  auto_deploy = true
+
+  tags = merge(
+    local.tags,
+    {
+      Service = "websocket-api"
+    }
+  )
+
+  depends_on = [
+    module.backend
+  ]
+}
+
 # S3 Bucket for Game Replays
 module "replays_bucket" {
   source = "./s3"
@@ -316,9 +364,9 @@ module "replays_bucket" {
 # Build Frontend React Project
 resource "terraform_data" "build_frontend" {
   triggers_replace = {
-    # TODO: REPLACE WITH PROPER URLS ONCE API GATEWAYS ARE ADDED
-    backend_url    = var.backend_config.enabled ? "http://${module.backend[0].load_balancer_dns}" : "http://localhost:3000"
-    websockets_url = var.backend_config.enabled ? "ws://${module.backend[0].load_balancer_dns}" : "ws://localhost:3001"
+    # Use API Gateway endpoints instead of direct ALB access
+    backend_url    = var.backend_config.enabled ? "http://${module.backend[0].alb_dns_name}" : "http://localhost:3000"
+    websockets_url = var.backend_config.enabled ? module.websocket_api[0].websocket_stage_invoke_url : "ws://localhost:3001"
 
     # Also rebuild if the build script itself changes
     build_script_hash = filesha256("${path.module}/build-frontend.sh")
@@ -329,10 +377,10 @@ resource "terraform_data" "build_frontend" {
     working_dir = path.module
   }
 
-  # TODO: REPLACE WITH PROPER DEPENDENCIES ONCE API GATEWAYS ARE ADDED
   depends_on = [
     module.backend,
     module.lambda_functions,
+    module.websocket_api,
   ]
 }
 

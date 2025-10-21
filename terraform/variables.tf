@@ -123,10 +123,10 @@ variable "backend_config" {
 variable "dynamodb_shots_table" {
   description = "Configuration for the DynamoDB shots table"
   type = object({
-    name                   = string
-    billing_mode           = string
-    partition_key          = string
-    sort_key               = string
+    name          = string
+    billing_mode  = string
+    partition_key = string
+    sort_key      = string
     attributes = list(object({
       name = string
       type = string
@@ -139,10 +139,10 @@ variable "dynamodb_shots_table" {
       read_capacity   = number
       write_capacity  = number
     }))
-    encryption_enabled      = bool
-    point_in_time_recovery  = bool
-    ttl_enabled             = bool
-    ttl_attribute_name      = string
+    encryption_enabled     = bool
+    point_in_time_recovery = bool
+    ttl_enabled            = bool
+    ttl_attribute_name     = string
   })
 }
 
