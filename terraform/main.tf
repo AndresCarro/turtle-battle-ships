@@ -105,7 +105,57 @@ module "vpc" {
   tags                 = local.tags
 }
 
-# TODO: GENERATE RDS AND RDS PROXY
+# RDS Database Module
+module "rds" {
+  source = "./rds"
+
+  name            = "${var.project_name}-database"
+  region          = var.region
+  role_arn        = data.aws_iam_role.lab_role.arn
+  database_name   = var.rds_config.database_name
+  master_username = var.rds_config.master_username
+
+  # Network configuration
+  vpc_id = module.vpc.vpc_id
+  subnet_ids = [
+    module.vpc.subnets[var.rds_config.subnet_names[0]],
+    module.vpc.subnets[var.rds_config.subnet_names[1]]
+  ]
+
+  # Allow access from backend and Lambda functions (will be populated after they're created)
+  allowed_security_groups = concat(
+    var.backend_config.enabled ? [module.backend[0].security_group_id] : [],
+    # Lambda security groups will be added when they need DB access
+    []
+  )
+
+  # Database engine configuration
+  engine            = var.rds_config.engine
+  engine_version    = var.rds_config.engine_version
+  instance_class    = var.rds_config.instance_class
+  port              = var.rds_config.port
+  allocated_storage = var.rds_config.allocated_storage
+
+  # High availability configuration
+  multi_az            = var.rds_config.multi_az
+  create_read_replica = var.rds_config.create_read_replica
+
+  # RDS Proxy configuration
+  create_rds_proxy    = var.rds_config.create_rds_proxy
+  proxy_engine_family = var.rds_config.proxy_engine_family
+
+  # Backup configuration
+  backup_retention_period = var.rds_config.backup_retention_period
+  skip_final_snapshot     = var.rds_config.skip_final_snapshot
+
+  # Security
+  deletion_protection = var.rds_config.deletion_protection
+  storage_encrypted   = var.rds_config.storage_encrypted
+
+  tags = local.tags
+
+  depends_on = [module.vpc]
+}
 
 # DynamoDB Module
 module "dynamodb_shots" {
@@ -147,11 +197,16 @@ module "lambda_functions" {
   memory_size = each.value.memory_size
   timeout     = each.value.timeout
 
-  # TODO: ADD ENVIRONMENT_VARIABLES
+  # Environment variables including RDS connection info
   environment_variables = merge(
     each.value.environment_variables,
     {
-      REGION = var.region
+      REGION            = var.region
+      DB_HOST           = module.rds.proxy_endpoint
+      DB_PORT           = tostring(module.rds.primary_instance_port)
+      DB_NAME           = module.rds.database_name
+      DB_USER           = module.rds.master_username
+      DB_PASSWORD_PARAM = module.rds.db_password_ssm_parameter
     }
   )
 
@@ -161,8 +216,14 @@ module "lambda_functions" {
       for subnet_name in each.value.subnet_names :
       module.vpc.subnets[subnet_name]
     ]
-    # TODO: ADD SG FOR DATABASE AFTER CREATED BY RDS MODULE
-    security_group_ids = each.value.security_group_ids
+    # Include RDS Proxy security group when Lambda needs DB access via proxy
+    # Lambdas connect to proxy, not directly to RDS
+    security_group_ids = concat(
+      each.value.security_group_ids,
+      each.value.vpc_enabled && var.rds_config.create_rds_proxy ? [module.rds.proxy_security_group_id] : [],
+      # Fallback to direct RDS access if proxy is disabled
+      each.value.vpc_enabled && !var.rds_config.create_rds_proxy ? [module.rds.rds_security_group_id] : []
+    )
   } : null
 
   tags = merge(
@@ -199,9 +260,12 @@ module "backend" {
   # Use private subnets with VPC endpoints (no public IP needed)
   assign_public_ip = false
 
-  # Additional security groups
-  # TODO: ADD SG FOR DATABASE AFTER CREATED BY RDS MODULE
-  security_group_ids = var.backend_config.security_group_ids
+  # Additional security groups (include RDS Proxy for DB access)
+  # Backend connects to proxy, not directly to RDS
+  security_group_ids = concat(
+    var.backend_config.security_group_ids,
+    var.rds_config.create_rds_proxy ? [module.rds.proxy_security_group_id] : [module.rds.rds_security_group_id]
+  )
 
   # Health check configuration
   health_check_path                = var.backend_config.health_check_path
@@ -210,12 +274,17 @@ module "backend" {
   health_check_healthy_threshold   = 2
   health_check_unhealthy_threshold = 3
 
-  # Environment variables
-  # TODO: ADD ENVIRONMENT_VARIABLES
+  # Environment variables including RDS connection info
+  # Use proxy endpoint if available for connection pooling and better performance
   environment_variables = merge(
     var.backend_config.environment_variables,
     {
-      REGION = var.region
+      REGION            = var.region
+      DB_HOST           = var.rds_config.create_rds_proxy ? module.rds.proxy_endpoint : module.rds.primary_instance_address
+      DB_PORT           = tostring(module.rds.primary_instance_port)
+      DB_NAME           = module.rds.database_name
+      DB_USER           = module.rds.master_username
+      DB_PASSWORD_PARAM = module.rds.db_password_ssm_parameter
     }
   )
 
@@ -303,20 +372,8 @@ module "websocket_api" {
   api_description = "WebSocket API Gateway for Turtle Battleships real-time game communication"
   stage_name      = var.environment
 
-  # ALB Integration - connect to the Fargate ALB HTTP listener
-  alb_listener_arn = module.backend[0].alb_http_listener_arn
-
-  # VPC Link Configuration - use same subnets as backend for connectivity
-  vpc_link_name = "${var.project_name}-websocket-vpc-link"
-  vpc_link_subnet_ids = [
-    for subnet_name in var.backend_config.subnet_names :
-    module.vpc.subnets[subnet_name]
-  ]
-
-  # Security groups for VPC Link - reuse backend ALB security group
-  vpc_link_security_group_ids = [
-    module.backend[0].alb_security_group_id
-  ]
+  # ALB Integration - connect directly to ALB DNS (WebSocket doesn't support VPC Link V2)
+  alb_dns_name = module.backend[0].alb_dns_name
 
   # CloudWatch logging configuration
   logging_level      = "INFO"
@@ -365,8 +422,8 @@ module "replays_bucket" {
 resource "terraform_data" "build_frontend" {
   triggers_replace = {
     # Use API Gateway endpoints instead of direct ALB access
-    backend_url    = var.backend_config.enabled ? "http://${module.backend[0].alb_dns_name}" : "http://localhost:3000"
-    websockets_url = var.backend_config.enabled ? module.websocket_api[0].websocket_stage_invoke_url : "ws://localhost:3001"
+    backend_url    = var.backend_config.enabled ? module.rest_api.api_endpoint : "http://localhost:3000"
+    websockets_url = var.backend_config.enabled ? module.websocket_api[0].websocket_api_endpoint : "ws://localhost:3001"
 
     # Also rebuild if the build script itself changes
     build_script_hash = filesha256("${path.module}/build-frontend.sh")
@@ -424,12 +481,17 @@ module "frontend_bucket" {
   upload_enabled    = var.frontend_bucket.upload_enabled
   upload_source_dir = var.frontend_bucket.upload_dir
 
-  tags = local.tags
+  tags = merge(
+    local.tags,
+    {
+      # Force S3 module to detect changes when build triggers change
+      # This creates a data dependency, not just an ordering dependency
+      BuildTrigger = sha256(jsonencode(terraform_data.build_frontend.triggers_replace))
+    }
+  )
 
   # Ensure frontend is built before attempting to upload
   depends_on = [
     terraform_data.build_frontend
   ]
 }
-
-# TODO: Give lambda funcitons a security group to access rds

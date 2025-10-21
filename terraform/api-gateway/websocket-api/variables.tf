@@ -28,25 +28,9 @@ variable "auto_deploy" {
 }
 
 # Existing ALB Integration
-variable "alb_listener_arn" {
-  description = "ARN of the existing Application Load Balancer HTTP listener to integrate with"
+variable "alb_dns_name" {
+  description = "DNS name of the existing Application Load Balancer to integrate with"
   type        = string
-}
-
-# VPC Link Configuration
-variable "vpc_link_name" {
-  description = "Name of the VPC Link"
-  type        = string
-}
-
-variable "vpc_link_subnet_ids" {
-  description = "Subnet IDs for the VPC Link"
-  type        = list(string)
-}
-
-variable "vpc_link_security_group_ids" {
-  description = "Security group IDs for the VPC Link"
-  type        = list(string)
 }
 
 # Integration Configuration

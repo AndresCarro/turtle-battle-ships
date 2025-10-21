@@ -80,7 +80,8 @@ resource "aws_s3_bucket_policy" "this" {
 }
 
 locals {
-  upload_files = var.upload_enabled ? fileset(var.upload_source_dir, "**") : []
+  # Use try() to handle case when directory doesn't exist yet (e.g., frontend not built)
+  upload_files = var.upload_enabled ? try(fileset(var.upload_source_dir, "**"), []) : []
 }
 
 resource "aws_s3_object" "uploads" {

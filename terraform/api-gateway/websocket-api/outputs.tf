@@ -28,16 +28,6 @@ output "stage_arn" {
   value       = aws_apigatewayv2_stage.websocket_stage.arn
 }
 
-output "vpc_link_id" {
-  description = "ID of the VPC Link"
-  value       = aws_apigatewayv2_vpc_link.vpc_link.id
-}
-
-output "vpc_link_arn" {
-  description = "ARN of the VPC Link"
-  value       = aws_apigatewayv2_vpc_link.vpc_link.arn
-}
-
 output "integration_id" {
   description = "ID of the API Gateway integration"
   value       = aws_apigatewayv2_integration.alb_integration.id

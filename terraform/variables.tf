@@ -97,6 +97,29 @@ variable "frontend_bucket" {
   })
 }
 
+# RDS Database Configuration
+variable "rds_config" {
+  description = "Configuration for the RDS database"
+  type = object({
+    database_name           = string
+    master_username         = string
+    engine                  = string
+    engine_version          = string
+    instance_class          = string
+    port                    = number
+    allocated_storage       = number
+    subnet_names            = list(string)
+    multi_az                = bool
+    create_read_replica     = bool
+    create_rds_proxy        = bool
+    proxy_engine_family     = string
+    backup_retention_period = number
+    skip_final_snapshot     = bool
+    deletion_protection     = bool
+    storage_encrypted       = bool
+  })
+}
+
 # Backend ECS Configuration
 variable "backend_config" {
   description = "Configuration for the backend ECS service"
