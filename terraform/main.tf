@@ -105,6 +105,32 @@ module "vpc" {
   tags                 = local.tags
 }
 
+# Security Group for Lambda Functions
+# Created before RDS so it can be referenced in RDS allowed_security_groups
+resource "aws_security_group" "lambda_sg" {
+  name        = "${var.project_name}-lambda-sg"
+  description = "Security group for Lambda functions"
+  vpc_id      = module.vpc.vpc_id
+
+  # Allow all outbound traffic (Lambda needs to reach RDS, APIs, etc.)
+  egress {
+    description = "Allow all outbound traffic"
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = merge(
+    local.tags,
+    {
+      Name = "${var.project_name}-lambda-sg"
+    }
+  )
+
+  depends_on = [module.vpc]
+}
+
 # RDS Database Module
 module "rds" {
   source = "./rds"
@@ -122,11 +148,10 @@ module "rds" {
     module.vpc.subnets[var.rds_config.subnet_names[1]]
   ]
 
-  # Allow access from backend and Lambda functions (will be populated after they're created)
+  # Allow access from backend and Lambda functions
   allowed_security_groups = concat(
     var.backend_config.enabled ? [module.backend[0].security_group_id] : [],
-    # Lambda security groups will be added when they need DB access
-    []
+    [aws_security_group.lambda_sg.id]
   )
 
   # Database engine configuration
@@ -206,7 +231,7 @@ module "lambda_functions" {
       DB_PORT           = tostring(module.rds.primary_instance_port)
       DB_NAME           = module.rds.database_name
       DB_USER           = module.rds.master_username
-      DB_PASSWORD_PARAM = module.rds.db_password_ssm_parameter
+      DB_PASSWORD       = module.rds.db_password
     }
   )
 
@@ -216,13 +241,11 @@ module "lambda_functions" {
       for subnet_name in each.value.subnet_names :
       module.vpc.subnets[subnet_name]
     ]
-    # Include RDS Proxy security group when Lambda needs DB access via proxy
-    # Lambdas connect to proxy, not directly to RDS
+    # Lambda functions use dedicated Lambda security group
+    # This security group is allowed by RDS Proxy security group
     security_group_ids = concat(
       each.value.security_group_ids,
-      each.value.vpc_enabled && var.rds_config.create_rds_proxy ? [module.rds.proxy_security_group_id] : [],
-      # Fallback to direct RDS access if proxy is disabled
-      each.value.vpc_enabled && !var.rds_config.create_rds_proxy ? [module.rds.rds_security_group_id] : []
+      [aws_security_group.lambda_sg.id]
     )
   } : null
 
