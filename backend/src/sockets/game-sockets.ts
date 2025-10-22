@@ -58,7 +58,7 @@ export const setupGameSockets = (io: Server) => {
           socket.emit('joined-game', { gameId, username });
 
           socket.to(roomName).emit('player-connected', { username });
-
+          socket.to(roomName).emit('game-state-update', game);
           socket.emit('game-state-update', game);
         } catch (error: any) {
           console.error('Error joining game:', error);

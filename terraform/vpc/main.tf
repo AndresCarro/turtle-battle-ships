@@ -83,12 +83,15 @@ resource "aws_route_table_association" "public" {
 
 
 locals {
+  # Get all private subnet associations (exclude public subnets)
   rt_associations = flatten([
     for rt_name, subnet_names in var.route_tables_config : [
       for subnet_name in subnet_names : {
         rt_name     = rt_name
         subnet_name = subnet_name
       }
+      # Only include if the subnet is NOT public (public subnets are handled separately)
+      if lookup({ for s in var.subnets_config : s.name => s }, subnet_name, { type = "private" }).type != "public"
     ]
   ])
 }

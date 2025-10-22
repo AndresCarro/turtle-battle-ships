@@ -3,6 +3,7 @@
  */
 export interface JoinGameRequest {
   username: string;
+  gameId: number;
 }
 
 /**

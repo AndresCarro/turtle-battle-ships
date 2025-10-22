@@ -11,18 +11,6 @@ export const handler = async (
   context: Context
 ): Promise<APIGatewayProxyResult> => {
   try {
-    const gameId = event.pathParameters?.id;
-    if (!gameId) {
-      return {
-        statusCode: 400,
-        headers: {
-          "Content-Type": "application/json",
-          "Access-Control-Allow-Origin": "*",
-        },
-        body: JSON.stringify({ error: "Missing game id in path" }),
-      };
-    }
-
     if (!event.body) {
       return {
         statusCode: 400,
@@ -33,8 +21,18 @@ export const handler = async (
         body: JSON.stringify({ error: "Request body is required" }),
       };
     }
-
     const requestBody: JoinGameRequest = JSON.parse(event.body);
+
+    if (!requestBody.gameId) {
+      return {
+        statusCode: 400,
+        headers: {
+          "Content-Type": "application/json",
+          "Access-Control-Allow-Origin": "*",
+        },
+        body: JSON.stringify({ error: "Missing game id in body" }),
+      };
+    }
 
     if (!requestBody.username) {
       return {
@@ -48,7 +46,10 @@ export const handler = async (
     }
 
     // Lógica usando el id del juego
-    const gameJoined = await joinRoom(Number(gameId), requestBody.username);
+    const gameJoined = await joinRoom(
+      Number(requestBody.gameId),
+      requestBody.username
+    );
 
     const response: JoinGameResponse = gameJoined;
 

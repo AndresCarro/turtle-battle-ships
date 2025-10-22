@@ -40,6 +40,12 @@ data "aws_availability_zones" "available" {
   state = "available"
 }
 
+# API Gateway CloudWatch Logs Role (Account-level setting)
+# This is required for API Gateway to write logs to CloudWatch
+resource "aws_api_gateway_account" "main" {
+  cloudwatch_role_arn = data.aws_iam_role.lab_role.arn
+}
+
 # Locals for dynamic resource creation
 locals {
   # Merge project tags with common tags
@@ -395,43 +401,8 @@ module "rest_api" {
   )
 
   depends_on = [
+    aws_api_gateway_account.main,
     module.lambda_functions
-  ]
-}
-
-# WebSocket API Gateway for Backend WebSocket Traffic
-module "websocket_api" {
-  count  = var.backend_config.enabled ? 1 : 0
-  source = "./api-gateway/websocket-api"
-
-  api_name        = "${var.project_name}-websocket-api"
-  api_description = "WebSocket API Gateway for Turtle Battleships real-time game communication"
-  stage_name      = var.environment
-
-  # Public ALB Integration - ALB is internet-facing with security group restrictions
-  alb_dns_name = module.backend[0].alb_dns_name
-
-  # CloudWatch logging configuration
-  logging_level      = "INFO"
-  log_retention_days = 14
-  data_trace_enabled = false
-
-  # Throttling configuration
-  throttling_burst_limit = 5000
-  throttling_rate_limit  = 10000
-
-  # Auto-deploy enabled for development
-  auto_deploy = true
-
-  tags = merge(
-    local.tags,
-    {
-      Service = "websocket-api"
-    }
-  )
-
-  depends_on = [
-    module.backend
   ]
 }
 
@@ -470,7 +441,7 @@ resource "terraform_data" "build_frontend" {
   triggers_replace = {
     # Use API Gateway invoke URLs (not ARNs)
     backend_url    = var.backend_config.enabled ? module.rest_api.invoke_url : "http://localhost:3000"
-    websockets_url = var.backend_config.enabled ? module.websocket_api[0].websocket_api_endpoint : "ws://localhost:3001"
+    websockets_url = var.backend_config.enabled ? "ws://${module.backend[0].alb_dns_name}" : "ws://localhost:3001"
 
     # Also rebuild if the build script itself changes
     build_script_hash = filesha256("${path.module}/build-frontend.sh")
@@ -484,7 +455,7 @@ resource "terraform_data" "build_frontend" {
   depends_on = [
     module.backend,
     module.lambda_functions,
-    module.websocket_api,
+    morule.rest_api
   ]
 }
 
@@ -531,7 +502,9 @@ module "frontend_bucket" {
 }
 
 locals {
-  frontend_files = fileset("../frontend/dist", "**")
+  # Only scan for files if the dist directory exists, otherwise return empty set
+  # Using try() to catch the error if directory doesn't exist
+  frontend_files = try(fileset("../frontend/dist", "**"), [])
 }
 
 resource "aws_s3_object" "frontend_upload" {
@@ -551,7 +524,9 @@ resource "aws_s3_object" "frontend_upload" {
       jpg  = "image/jpeg",
       jpeg = "image/jpeg",
       svg  = "image/svg+xml",
-      json = "application/json"
+      json = "application/json",
+      ico  = "image/x-icon",
+      txt  = "text/plain"
     },
     split(".", each.value)[length(split(".", each.value)) - 1],
     "binary/octet-stream"

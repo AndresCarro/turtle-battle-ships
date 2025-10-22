@@ -31,10 +31,10 @@ export const GameRoomService = {
     gameRoomId: number,
     username: string
   ): Promise<GameRoom> => {
-    const res = await fetch(`${API_URL}/${gamesEndpointPrefix}/${gameRoomId}`, {
+    const res = await fetch(`${API_URL}/${gamesEndpointPrefix}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username }),
+      body: JSON.stringify({ username, gameId: gameRoomId }),
     });
     return handleResponse<GameRoom>(res);
   },
