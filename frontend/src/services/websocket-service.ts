@@ -1,6 +1,6 @@
 import type { Message, ShipForCreation } from '@/types';
 import { io, Socket } from 'socket.io-client';
-import { API_URL } from './api-utils';
+import { WEBSOCKET_URL } from './api-utils';
 
 export interface GameWebSocketEvents {
   // Events we send to server
@@ -287,6 +287,6 @@ export class GameWebSocketService {
 }
 
 // Create singleton instance
-export const gameWebSocketService = new GameWebSocketService(API_URL);
+export const gameWebSocketService = new GameWebSocketService(WEBSOCKET_URL);
 
 export default gameWebSocketService;

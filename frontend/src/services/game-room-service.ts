@@ -7,18 +7,24 @@ export const GameRoomService = {
   createGameRoom: async (
     gameRoomName: string,
     username: string
-  ): Promise<GameRoom> => {
-    const res = await fetch(`${API_URL}/${gamesEndpointPrefix}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ gameRoomName, username }),
-    });
-    return handleResponse<GameRoom>(res);
+  ): Promise<GameRoom | null> => {
+    try {
+      const res = await fetch(`${API_URL}/${gamesEndpointPrefix}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ gameRoomName, username }),
+      });
+      return handleResponse<GameRoom>(res);
+    } catch (err) {
+      console.error('Error creating game room: ', err);
+      return null;
+    }
   },
 
   getGameRooms: async (): Promise<GameRoom[]> => {
     const res = await fetch(`${API_URL}/${gamesEndpointPrefix}`);
-    return handleResponse<GameRoom[]>(res);
+    const response = await handleResponse<{ games: GameRoom[] }>(res);
+    return response.games;
   },
 
   joinGameRoom: async (
