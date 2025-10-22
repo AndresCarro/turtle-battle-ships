@@ -472,7 +472,10 @@ cd turtle-battle-ships
 
 ### Step 2: Configure AWS Credentials
 
-Set up your AWS credentials in `~/.aws/credentials`.
+Set up your AWS credentials in `./terraform/aws-credentials`.
+
+> [!NOTE]
+> The current working directory is assumed to be the root of the cloned repository.
 
 ### Step 3: Review and Customize Configuration
 
@@ -507,6 +510,7 @@ terraform plan
 Apply the Terraform configuration to create resources:
 
 ```bash
+terraform apply -target=terraform_data.build_frontend
 terraform apply
 ```
 
@@ -520,7 +524,7 @@ terraform output
 
 **Expected outputs**:
 ```
-frontend_url = "http://[...].s3-website-us-east-1.amazonaws.com"
+frontend_website_url = "http://[...].s3-website-us-east-1.amazonaws.com"
 backend_url = "http://[...].us-east-1.elb.amazonaws.com"
 websocket_url = "http://[...].us-east-1.elb.amazonaws.com"
 ```

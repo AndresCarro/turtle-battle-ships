@@ -60,7 +60,7 @@ variable "encryption" {
     kms_key_arn  = optional(string)
   })
   default = {
-    enabled = true
+    enabled = false
   }
 }
 
