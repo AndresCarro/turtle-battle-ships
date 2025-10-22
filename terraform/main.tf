@@ -311,7 +311,7 @@ module "backend" {
       DB_PASSWORD       = module.rds.db_password
       DB_SSL            = "true"  # Enable SSL/TLS for RDS connections
       # S3 Configuration
-      BUCKET_NAME       = module.replays_bucket.bucket_name
+      BUCKET_NAME       = var.replays_bucket.name
       # DynamoDB Configuration
       DYNAMO_TABLE_NAME = module.dynamodb_shots.table_name
       DYNAMO_REGION     = var.region
@@ -431,22 +431,33 @@ module "websocket_api" {
 
 # S3 Bucket for Game Replays
 module "replays_bucket" {
-  source = "./s3"
+  source  = "terraform-aws-modules/s3-bucket/aws"
+  version = "~> 3.15"
 
-  bucket_name        = var.replays_bucket.name
-  versioning_enabled = var.replays_bucket.versioning_enabled
-  encryption_enabled = var.replays_bucket.encryption_enabled
-  sse_algorithm      = var.replays_bucket.sse_algorithm
+  bucket = var.replays_bucket.name
 
-  public_access_block = {
-    block_public_acls       = true
-    block_public_policy     = true
-    ignore_public_acls      = true
-    restrict_public_buckets = true
+  versioning = {
+    enabled = var.replays_bucket.versioning_enabled
   }
+
+  server_side_encryption_configuration = var.replays_bucket.encryption_enabled ? {
+    rule = {
+      apply_server_side_encryption_by_default = {
+        sse_algorithm = var.replays_bucket.sse_algorithm
+      }
+    }
+  } : null
+
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
+
+  force_destroy = true
 
   tags = local.tags
 }
+
 
 # Build Frontend React Project
 resource "terraform_data" "build_frontend" {
@@ -473,29 +484,31 @@ resource "terraform_data" "build_frontend" {
 
 # S3 Bucket for Frontend (SPA)
 module "frontend_bucket" {
-  source = "./s3"
+  source  = "terraform-aws-modules/s3-bucket/aws"
+  version = "~> 3.15"
 
-  bucket_name     = var.frontend_bucket.name
-  acl             = "public-read"
-  website_enabled = var.frontend_bucket.website_enabled
-  index_document  = var.frontend_bucket.index_document
-  error_document  = var.frontend_bucket.error_document
+  bucket = var.frontend_bucket.name
 
-  cors_rules = [
+  website = {
+    index_document = var.frontend_bucket.index_document
+    error_document = var.frontend_bucket.error_document
+  }
+
+  cors_rule = [
     {
       allowed_methods = ["GET", "HEAD"]
       allowed_origins = ["*"]
     }
   ]
 
-  public_access_block = {
-    block_public_acls       = false
-    block_public_policy     = false
-    ignore_public_acls      = false
-    restrict_public_buckets = false
-  }
+  block_public_acls       = true
+  ignore_public_acls      = true
+  block_public_policy     = false   
+  restrict_public_buckets = false   
 
-  bucket_policy = jsonencode({
+  # Política pública de solo lectura
+  attach_policy = true
+  policy = jsonencode({
     Version = "2012-10-17",
     Statement = [
       {
@@ -508,20 +521,38 @@ module "frontend_bucket" {
     ]
   })
 
-  upload_enabled    = var.frontend_bucket.upload_enabled
-  upload_source_dir = var.frontend_bucket.upload_dir
+  tags = local.tags
+}
 
-  tags = merge(
-    local.tags,
+locals {
+  frontend_files = fileset("../frontend/dist", "**")
+}
+
+resource "aws_s3_object" "frontend_upload" {
+  for_each = toset(local.frontend_files)
+
+  bucket = module.frontend_bucket.s3_bucket_id 
+  key    = each.value
+  source = "../frontend/dist/${each.value}"
+  etag   = filemd5("../frontend/dist/${each.value}")
+
+  content_type = lookup(
     {
-      # Force S3 module to detect changes when build triggers change
-      # This creates a data dependency, not just an ordering dependency
-      BuildTrigger = sha256(jsonencode(terraform_data.build_frontend.triggers_replace))
-    }
+      js   = "application/javascript",
+      css  = "text/css",
+      html = "text/html",
+      png  = "image/png",
+      jpg  = "image/jpeg",
+      jpeg = "image/jpeg",
+      svg  = "image/svg+xml",
+      json = "application/json"
+    },
+    split(".", each.value)[length(split(".", each.value)) - 1],
+    "binary/octet-stream"
   )
 
-  # Ensure frontend is built before attempting to upload
   depends_on = [
-    terraform_data.build_frontend
+    terraform_data.build_frontend,
+    module.frontend_bucket
   ]
 }

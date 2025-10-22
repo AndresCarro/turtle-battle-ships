@@ -44,8 +44,8 @@ output "backend_service_name" {
 # Frontend Outputs
 output "frontend_website_url" {
   description = "URL of the frontend website hosted on S3"
-  value       = module.frontend_bucket.website_endpoint
-}
+  value       = module.frontend_bucket.s3_bucket_website_endpoint
+  }
 
 # RDS Database Outputs
 output "rds_primary_endpoint" {
