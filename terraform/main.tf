@@ -455,7 +455,7 @@ resource "terraform_data" "build_frontend" {
   depends_on = [
     module.backend,
     module.lambda_functions,
-    morule.rest_api
+    module.rest_api
   ]
 }
 

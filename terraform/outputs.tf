@@ -14,21 +14,21 @@ output "rest_api_stage_name" {
   value       = module.rest_api.stage_name
 }
 
-# WebSocket API Gateway Outputs
-output "websocket_api_id" {
-  description = "ID of the WebSocket API Gateway"
-  value       = var.backend_config.enabled ? module.websocket_api[0].websocket_api_id : null
-}
-
-output "websocket_api_endpoint" {
-  description = "WebSocket API endpoint URL"
-  value       = var.backend_config.enabled ? module.websocket_api[0].websocket_api_endpoint : null
-}
-
-output "websocket_api_invoke_url" {
-  description = "Invoke URL for the WebSocket API Gateway (use this for frontend WebSocket connections)"
-  value       = var.backend_config.enabled ? module.websocket_api[0].websocket_stage_invoke_url : null
-}
+# # WebSocket API Gateway Outputs
+# output "websocket_api_id" {
+#   description = "ID of the WebSocket API Gateway"
+#   value       = var.backend_config.enabled ? module.websocket_api[0].websocket_api_id : null
+# }
+# 
+# output "websocket_api_endpoint" {
+#   description = "WebSocket API endpoint URL"
+#   value       = var.backend_config.enabled ? module.websocket_api[0].websocket_api_endpoint : null
+# }
+# 
+# output "websocket_api_invoke_url" {
+#   description = "Invoke URL for the WebSocket API Gateway (use this for frontend WebSocket connections)"
+#   value       = var.backend_config.enabled ? module.websocket_api[0].websocket_stage_invoke_url : null
+# }
 
 # Backend Service Outputs
 output "backend_alb_dns" {
