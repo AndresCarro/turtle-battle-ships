@@ -134,6 +134,7 @@ variable "backend_config" {
     health_check_path     = string
     environment_variables = map(string)
     subnet_names          = list(string)
+    alb_subnet_names      = optional(list(string), [])  # ALB subnets (public for internet-facing ALB)
     security_group_ids    = list(string)
     enable_autoscaling    = bool
     autoscaling_min       = number

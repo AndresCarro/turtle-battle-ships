@@ -276,10 +276,16 @@ module "backend" {
 
   # Network configuration - use configured subnet names
   vpc_id = module.vpc.vpc_id
+  # ECS tasks in private subnets
   subnet_ids = [
     for subnet_name in var.backend_config.subnet_names :
     module.vpc.subnets[subnet_name]
   ]
+  # ALB in public subnets
+  alb_subnet_ids = length(var.backend_config.alb_subnet_names) > 0 ? [
+    for subnet_name in var.backend_config.alb_subnet_names :
+    module.vpc.subnets[subnet_name]
+  ] : []
 
   # Use private subnets with VPC endpoints (no public IP needed)
   assign_public_ip = false
@@ -402,7 +408,7 @@ module "websocket_api" {
   api_description = "WebSocket API Gateway for Turtle Battleships real-time game communication"
   stage_name      = var.environment
 
-  # ALB Integration - connect directly to ALB DNS (WebSocket doesn't support VPC Link V2)
+  # Public ALB Integration - ALB is internet-facing with security group restrictions
   alb_dns_name = module.backend[0].alb_dns_name
 
   # CloudWatch logging configuration

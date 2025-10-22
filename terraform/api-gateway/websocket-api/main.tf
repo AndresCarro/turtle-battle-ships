@@ -25,8 +25,8 @@ resource "aws_cloudwatch_log_group" "websocket_logs" {
   tags = var.tags
 }
 
-# API Gateway Integration with existing ALB via HTTP (WebSocket doesn't support VPC Link V2)
-# Using direct HTTP integration to ALB DNS name
+# API Gateway Integration with public ALB via HTTP
+# ALB must be public (internet-facing) with security group restrictions
 resource "aws_apigatewayv2_integration" "alb_integration" {
   api_id             = aws_apigatewayv2_api.websocket_api.id
   integration_type   = "HTTP_PROXY"

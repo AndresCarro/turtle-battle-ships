@@ -33,6 +33,42 @@ variable "alb_dns_name" {
   type        = string
 }
 
+variable "alb_arn" {
+  description = "ARN of the existing Application Load Balancer (required for VPC Link)"
+  type        = string
+  default     = ""
+}
+
+variable "alb_listener_arn" {
+  description = "ARN of the ALB listener (required for VPC Link)"
+  type        = string
+  default     = ""
+}
+
+variable "vpc_id" {
+  description = "VPC ID where the ALB is located (required for VPC Link)"
+  type        = string
+  default     = ""
+}
+
+variable "subnet_ids" {
+  description = "Subnet IDs for VPC Link (required for VPC Link)"
+  type        = list(string)
+  default     = []
+}
+
+variable "security_group_ids" {
+  description = "Security group IDs for VPC Link"
+  type        = list(string)
+  default     = []
+}
+
+variable "use_vpc_link" {
+  description = "Whether to use VPC Link to connect to internal ALB (true) or public internet connection (false)"
+  type        = bool
+  default     = true
+}
+
 # Integration Configuration
 variable "integration_request_parameters" {
   description = "Request parameters for the integration"

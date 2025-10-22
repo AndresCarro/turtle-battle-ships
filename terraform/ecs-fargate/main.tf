@@ -242,7 +242,7 @@ resource "aws_security_group" "alb" {
 resource "aws_vpc_security_group_ingress_rule" "alb_http" {
   count             = var.enable_load_balancer ? 1 : 0
   security_group_id = aws_security_group.alb[0].id
-  description       = "Allow HTTP traffic for WebSocket connections"
+  description       = "Allow HTTP/WebSocket handshake traffic from API Gateway"
   from_port         = 80
   to_port           = 80
   ip_protocol       = "tcp"
@@ -276,10 +276,11 @@ resource "aws_vpc_security_group_egress_rule" "alb_egress" {
 resource "aws_lb" "alb" {
   count              = var.enable_load_balancer ? 1 : 0
   name               = "${var.service_name}-alb"
-  internal           = true
+  internal           = false  # Public ALB for API Gateway WebSocket integration
   load_balancer_type = "application"
   security_groups    = [aws_security_group.alb[0].id]
-  subnets            = var.subnet_ids
+  # Use separate ALB subnets (public) if provided, otherwise use task subnets
+  subnets            = length(var.alb_subnet_ids) > 0 ? var.alb_subnet_ids : var.subnet_ids
 
   enable_deletion_protection = false
   enable_http2               = true

@@ -11,6 +11,17 @@ resource "aws_vpc" "this" {
   )
 }
 
+# Internet Gateway for public subnets
+resource "aws_internet_gateway" "this" {
+  vpc_id = aws_vpc.this.id
+
+  tags = merge(
+    {
+      Name = "${var.vpc_config.name}-igw"
+    },
+    var.tags
+  )
+}
 
 resource "aws_subnet" "this" {
   for_each = { for s in var.subnets_config : s.name => s }
@@ -40,6 +51,34 @@ resource "aws_route_table" "this" {
     },
     var.tags
   )
+}
+
+# Route table for public subnets
+resource "aws_route_table" "public" {
+  vpc_id = aws_vpc.this.id
+
+  route {
+    cidr_block = "0.0.0.0/0"
+    gateway_id = aws_internet_gateway.this.id
+  }
+
+  tags = merge(
+    {
+      Name = "${var.vpc_config.name}-public-rt"
+    },
+    var.tags
+  )
+}
+
+# Associate public subnets with public route table
+resource "aws_route_table_association" "public" {
+  for_each = {
+    for name, subnet in aws_subnet.this :
+    name => subnet if subnet.map_public_ip_on_launch
+  }
+
+  subnet_id      = each.value.id
+  route_table_id = aws_route_table.public.id
 }
 
 
