@@ -1,0 +1,174 @@
+# Project Configuration
+project_name = "turtle-battle-ships"
+environment  = "dev"
+
+common_tags = {
+  ManagedBy = "Group3"
+  Owner     = "Group3"
+}
+
+# VPC Configuration
+private_subnets_per_az = 2
+public_subnets_per_az  = 1  # Add public subnets for ALB
+
+# Subnet names per AZ (0-indexed)
+subnet_names = {
+  "0" = {
+    private = ["private-logic-1", "private-db-1"]
+    public  = ["public-alb-1"]  # Public subnet for ALB in AZ1
+  }
+  "1" = {
+    private = ["private-logic-2", "private-db-2"]
+    public  = ["public-alb-2"]  # Public subnet for ALB in AZ2
+  }
+}
+
+# VPC Endpoints
+vpc_endpoints_config = [
+  { service = "s3", type = "Gateway" },
+  { service = "dynamodb", type = "Gateway" },
+  { service = "ecr.api", type = "Interface", subnets = ["private-logic-1", "private-logic-2"], private_dns = true },
+  { service = "ecr.dkr", type = "Interface", subnets = ["private-logic-1", "private-logic-2"], private_dns = true },
+  { service = "logs", type = "Interface", subnets = ["private-logic-1", "private-logic-2"], private_dns = true }
+]
+
+# S3 Buckets
+replays_bucket = {
+  name               = "turtle-battle-ships-replays-sample"
+  versioning_enabled = false
+  encryption_enabled = true
+  sse_algorithm      = "AES256"
+}
+
+frontend_bucket = {
+  name            = "turtle-battle-ships-frontend-sample"
+  website_enabled = true
+  index_document  = "index.html"
+  error_document  = "index.html"
+  upload_enabled  = true
+  upload_dir      = "../frontend/dist"
+}
+
+# RDS Database Configuration
+rds_config = {
+  database_name           = "turtlebattleshipsdb"
+  master_username         = "dbadmin"
+  engine                  = "postgres"
+  engine_version          = "15.8"
+  instance_class          = "db.t3.micro"
+  port                    = 5432
+  allocated_storage       = 20
+  subnet_names            = ["private-db-1", "private-db-2"]
+  multi_az                = false  # Set to true for production
+  create_read_replica     = false  # Set to true for production
+  create_rds_proxy        = true   # Connection pooling for Lambda/ECS
+  proxy_engine_family     = "POSTGRESQL"
+  backup_retention_period = 7
+  skip_final_snapshot     = true   # Set to false for production
+  deletion_protection     = false  # Set to true for production
+  storage_encrypted       = true
+}
+
+# DynamoDB Shots Table
+dynamodb_shots_table = {
+  name          = "turtle-battleships-shots"
+  billing_mode  = "PAY_PER_REQUEST"
+  partition_key = "PK"
+  sort_key      = "SK"
+  attributes = [
+    {
+      name = "PK"
+      type = "S"
+    },
+    {
+      name = "SK"
+      type = "S"
+    },
+  ]
+  global_secondary_indexes = []
+  encryption_enabled       = true
+  point_in_time_recovery   = false
+  ttl_enabled              = false
+  ttl_attribute_name       = ""
+}
+
+# Backend ECS Service
+backend_config = {
+  enabled           = true
+  service_name      = "turtle-battleships-backend"
+  dockerfile_path   = "../backend"
+  container_port    = 3000
+  cpu               = 256
+  memory            = 512
+  desired_count     = 1
+  health_check_path = "/ping"
+  environment_variables = {
+    NODE_ENV    = "production"
+    PORT        = "3000"
+    SERVER_PORT = "3000"
+  }
+  # ECS tasks stay in private subnets (secure)
+  subnet_names       = ["private-logic-1", "private-logic-2"]
+  # ALB will be in public subnets (configured in module)
+  alb_subnet_names   = ["public-alb-1", "public-alb-2"]
+  security_group_ids = [] # Add custom security group IDs here if needed
+  enable_autoscaling = true
+  autoscaling_min    = 1
+  autoscaling_max    = 2
+  autoscaling_cpu    = 70
+}
+
+lambda_functions = [
+  {
+    function_name   = "turtle-battleships-create-user"
+    dockerfile_path = "../lambdas/create-user-lambda"
+    memory_size     = 512
+    timeout         = 30
+    environment_variables = {
+      ENVIRONMENT = "production"
+    }
+    # Enable VPC to access RDS Proxy
+    vpc_enabled        = true
+    subnet_names       = ["private-logic-1", "private-logic-2"]
+    security_group_ids = []
+  },
+  {
+    function_name   = "turtle-battleships-create-game-room"
+    dockerfile_path = "../lambdas/create-game-room-lambda"
+    memory_size     = 512
+    timeout         = 30
+    environment_variables = {
+      ENVIRONMENT = "production"
+    }
+    # Enable VPC to access RDS Proxy
+    vpc_enabled        = true
+    subnet_names       = ["private-logic-1", "private-logic-2"]
+    security_group_ids = []
+  },
+  {
+    function_name   = "turtle-battleships-join-room"
+    dockerfile_path = "../lambdas/join-room-lambda"
+    memory_size     = 512
+    timeout         = 30
+    environment_variables = {
+      ENVIRONMENT = "production"
+    }
+    # Enable VPC to access RDS Proxy
+    vpc_enabled        = true
+    subnet_names       = ["private-logic-1", "private-logic-2"]
+    security_group_ids = []
+  },
+  {
+    function_name   = "turtle-battleships-list-game-rooms"
+    dockerfile_path = "../lambdas/list-game-rooms-lambda"
+    memory_size     = 512
+    timeout         = 30
+    environment_variables = {
+      ENVIRONMENT = "production"
+    }
+    # Enable VPC to access RDS Proxy
+    vpc_enabled        = true
+    subnet_names       = ["private-logic-1", "private-logic-2"]
+    security_group_ids = []
+  }
+]

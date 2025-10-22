@@ -12,11 +12,11 @@ The focus of this project is to demonstrate best practices in cloud architecture
         * [DynamoDB Module (./terraform/dynamodb)](#dynamodb-module-terraformdynamodb)
         * [Lambda with ECR Integration Module (./terraform/lambda-with-ecr)](#lambda-with-ecr-integration-module-terraformlambda-with-ecr)
         * [ECS Fargate Module (./terraform/ecs-fargate)](#ecs-fargate-module-terraformecs-fargate)
-        * [S3 Module (./terraform/s3)](#s3-module-terraforms3)
+        * [RDS Module (./terraform/rds)](#rds-module-terraformrds)
+        * [S3 Buckets (External Module)](#s3-buckets-external-module)
         * [API Gateway Modules (./terraform/api-gateway)](#api-gateway-modules-terraformapi-gateway)
             * [1. REST API Gateway (./terraform/api-gateway/rest-api)](#1-rest-api-gateway-terraformapi-gatewayrest-api)
             * [2. WebSocket API Gateway (./terraform/api-gateway/websocket-api)](#2-websocket-api-gateway-terraformapi-gatewaywebsocket-api)
-        * [RDS Module (<a href="https://google.com" rel="nofollow">External Module</a>)](https://google.com)
     * [Terraform Functions and Meta-Arguments](#terraform-functions-and-meta-arguments)
         * [Built-in Functions](#built-in-functions)
         * [Meta-Arguments](#meta-arguments)
@@ -155,37 +155,100 @@ This project uses custom Terraform modules to create a scalable, modular infrast
 - `health_check_path`: ALB health check endpoint
 - `enable_autoscaling`: Enable CPU-based auto-scaling
 
-#### S3 Module (`./terraform/s3`)
+#### RDS Module (`./terraform/rds`)
 
-**Purpose**: Creates S3 buckets with advanced configurations including website hosting and automatic file uploads.
+**Purpose**: Creates a complete AWS RDS setup with optional Read Replica and RDS Proxy for connection pooling and high availability.
 
 **Key Features**:
-- Optional versioning
-- Server-side encryption (AES256 or KMS)
+- Primary RDS instance with Multi-AZ support
+- Optional Read Replica for read scaling and automatic failover
+- Optional RDS Proxy for connection pooling and improved resilience
+- Automated backups with configurable retention
+- Storage encryption with KMS
+- Dedicated security groups for RDS instances and proxy
+- Credentials stored in AWS SSM Parameter Store
+- IAM authentication support for RDS Proxy
+- Enhanced monitoring and Performance Insights
+- CloudWatch log exports
+
+**Resources Created**:
+- Primary RDS instance
+- Read Replica (optional)
+- RDS Proxy (optional)
+- Security groups for RDS and proxy
+- DB subnet group
+- SSM parameters for credentials
+- Secrets Manager secret (required for RDS Proxy)
+
+**Inputs**:
+- `name`: Name prefix for RDS resources
+- `region`: AWS region
+- `role_arn`: ARN of IAM role for RDS
+- `database_name`: Name of the initial database
+- `master_username`: Master username for database
+- `vpc_id`: VPC ID for security groups
+- `subnet_ids`: List of subnet IDs for DB subnet group
+- `allowed_security_groups`: Security groups allowed to access RDS
+- `engine`: Database engine (postgres, mysql, etc.)
+- `engine_version`: Database engine version
+- `instance_class`: RDS instance class (e.g., db.t3.micro)
+- `port`: Database port
+- `allocated_storage`: Initial storage allocation in GB
+- `multi_az`: Enable Multi-AZ deployment
+- `create_read_replica`: Create a read replica
+- `create_rds_proxy`: Create RDS Proxy for connection pooling
+- `proxy_engine_family`: Engine family for proxy (POSTGRESQL, MYSQL)
+- `backup_retention_period`: Backup retention in days
+- `skip_final_snapshot`: Skip final snapshot on deletion
+- `deletion_protection`: Enable deletion protection
+- `storage_encrypted`: Enable storage encryption
+
+**Outputs**:
+- `primary_instance_address`: Primary RDS instance endpoint
+- `primary_instance_port`: Primary RDS instance port
+- `read_replica_address`: Read replica endpoint (if created)
+- `proxy_endpoint`: RDS Proxy endpoint (if created)
+- `database_name`: Database name
+- `master_username`: Master username
+- `db_password`: Master password (sensitive)
+- `rds_security_group_id`: Security group ID for RDS
+- `proxy_security_group_id`: Security group ID for RDS Proxy
+
+#### S3 Buckets (External Module)
+
+**Purpose**: Creates S3 buckets for static website hosting (frontend) and game replay storage using the official AWS S3 Terraform module.
+
+**Module Used**: `terraform-aws-modules/s3-bucket/aws` (version ~> 3.15)
+
+**Key Features**:
+- Versioning support
+- Server-side encryption
 - Public access block configuration
-- Website hosting for SPAs
+- Website hosting for Single Page Applications (SPAs)
 - CORS configuration
 - Custom bucket policies
 - Automatic file upload from local directory
 
 **Resources Created**:
-- S3 bucket
-- Bucket policy (if specified)
-- Website configuration (optional)
-- CORS rules (optional)
-- Uploaded files (optional)
+- S3 bucket for frontend (static website)
+- S3 bucket for game replays
+- Bucket policies
+- Website configuration for frontend bucket
+- CORS rules
+- Uploaded frontend files with proper content types
 
-**Inputs**:
-- `bucket_name`: Unique bucket name
-- `versioning_enabled`: Enable versioning
-- `encryption_enabled`: Enable encryption
-- `website_enabled`: Enable static website hosting
-- `index_document`: Index page for website
-- `error_document`: Error page for website
-- `cors_rules`: CORS configuration
-- `bucket_policy`: Custom bucket policy
-- `upload_enabled`: Enable automatic file upload
-- `upload_source_dir`: Local directory to upload
+**Frontend Bucket Configuration**:
+- Static website hosting enabled
+- Public read access for website files
+- Automatic content-type detection (HTML, CSS, JS, images, etc.)
+- Error and index document configuration
+- Files automatically uploaded from `frontend/dist`
+
+**Replay Bucket Configuration**:
+- Private access (no public access)
+- Versioning enabled
+- Encryption enabled
+- Used by backend to store game replay data
 
 #### API Gateway Modules (`./terraform/api-gateway`)
 
@@ -267,10 +330,6 @@ This directory contains two sub-modules:
 - `custom_routes`: Additional WebSocket routes
 
 **Use Case**: Real-time communication, WebSockets, Socket.io, long-lived bidirectional connections
-
-#### RDS Module ([`External Module`](https://google.com))
-
-TODO
 
 ### Terraform Functions and Meta-Arguments
 
@@ -525,7 +584,7 @@ terraform output
 **Expected outputs**:
 ```
 frontend_website_url = "http://[...].s3-website-us-east-1.amazonaws.com"
-backend_url = "http://[...].us-east-1.elb.amazonaws.com"
+backend_url = "http://[...].us-east-1.amazonaws.com"
 websocket_url = "http://[...].us-east-1.elb.amazonaws.com"
 ```
 
