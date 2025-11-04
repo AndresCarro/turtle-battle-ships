@@ -1,0 +1,39 @@
+{
+  "name": "video-renderer",
+  "version": "1.0.0",
+  "description": "My Remotion video",
+  "repository": {},
+  "license": "UNLICENSED",
+  "private": true,
+  "dependencies": {
+    "@remotion/bundler": "4.0.371",
+    "@remotion/cli": "4.0.371",
+    "@remotion/renderer": "4.0.371",
+    "@remotion/zod-types": "4.0.371",
+    "clsx": "^2.1.1",
+    "lucide-react": "^0.552.0",
+    "react": "19.0.0",
+    "react-dom": "19.0.0",
+    "remotion": "4.0.371",
+    "tailwind-merge": "^3.3.1",
+    "zod": "3.22.3"
+  },
+  "devDependencies": {
+    "@remotion/eslint-config-flat": "4.0.371",
+    "@remotion/eslint-plugin": "4.0.371",
+    "@remotion/tailwind-v4": "^4.0.371",
+    "@types/react": "19.0.0",
+    "@types/web": "0.0.166",
+    "tailwindcss": "^4.1.16",
+    "tsx": "4.19.3",
+    "typescript": "5.8.2"
+  },
+  "scripts": {
+    "build": "remotion bundle",
+    "dev": "tsx watch server",
+    "start": "tsx server",
+    "lint": "eslint . && tsc",
+    "remotion:upgrade": "remotion upgrade",
+    "remotion:studio": "remotion studio"
+  }
+}
