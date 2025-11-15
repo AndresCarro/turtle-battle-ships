@@ -195,3 +195,16 @@ video_renderer_lambda = {
     OUTPUT_BUCKET = "turtle-battleships-video-replays-sample"
   }
 }
+
+# Cognito Configuration  
+cognito_config = {
+  enabled = true
+  callback_urls = [
+    "https://localhost:3000/callback",
+    "http://localhost:3000/callback"
+  ]
+  logout_urls = [
+    "https://localhost:3000/login",
+    "http://localhost:3000/login"
+  ]
+}

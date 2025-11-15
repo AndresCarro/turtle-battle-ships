@@ -211,3 +211,18 @@ variable "video_replays_bucket" {
     sse_algorithm      = string
   })
 }
+
+# Cognito Configuration
+variable "cognito_config" {
+  description = "Configuration for AWS Cognito"
+  type = object({
+    enabled       = bool
+    callback_urls = list(string)
+    logout_urls   = list(string)
+  })
+  default = {
+    enabled       = false
+    callback_urls = []
+    logout_urls   = []
+  }
+}

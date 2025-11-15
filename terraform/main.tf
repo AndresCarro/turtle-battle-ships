@@ -546,6 +546,17 @@ resource "aws_lambda_event_source_mapping" "video_renderer_from_sqs" {
   depends_on = [module.lambda_video_renderer, aws_sqs_queue.events]
 }
 
+# Cognito Module (conditional creation)
+module "cognito" {
+  count  = var.cognito_config.enabled ? 1 : 0
+  source = "./cognito"
+
+  project_name  = var.project_name
+  callback_urls = var.cognito_config.callback_urls
+  logout_urls   = var.cognito_config.logout_urls
+  tags          = local.tags
+}
+
 # Build Frontend React Project
 resource "terraform_data" "build_frontend" {
   triggers_replace = {
