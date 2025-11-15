@@ -1,0 +1,28 @@
+{
+  "name": "auth-callback-lambda",
+  "version": "1.0.0",
+  "description": "Lambda function to handle Cognito OAuth callback",
+  "main": "dist/handler.js",
+  "scripts": {
+    "build": "tsc",
+    "package": "npm run build && zip -r function.zip dist node_modules",
+    "deploy": "npm run package && aws lambda update-function-code --function-name auth-callback --zip-file fileb://function.zip"
+  },
+  "keywords": [
+    "lambda",
+    "aws",
+    "cognito",
+    "oauth",
+    "auth"
+  ],
+  "author": "Group3",
+  "license": "ISC",
+  "dependencies": {
+    "@types/aws-lambda": "^8.10.145",
+    "aws-sdk": "^2.1691.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "typescript": "^5.4.5"
+  }
+}

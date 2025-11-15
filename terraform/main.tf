@@ -387,6 +387,13 @@ module "rest_api" {
       lambda_arn   = module.lambda_functions["turtle-battleships-join-room"].function_invoke_arn
       lambda_name  = module.lambda_functions["turtle-battleships-join-room"].function_name
       enable_cors  = true
+    },
+    {
+      path_part    = "callback"
+      http_methods = ["GET"]
+      lambda_arn   = module.lambda_functions["turtle-battleships-auth-callback"].function_invoke_arn
+      lambda_name  = module.lambda_functions["turtle-battleships-auth-callback"].function_name
+      enable_cors  = false  # No CORS needed for redirect endpoints
     }
   ]
 

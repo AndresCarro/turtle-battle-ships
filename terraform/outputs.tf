@@ -54,7 +54,7 @@ output "cognito_config" {
 output "cognito_callback_urls_needed" {
   description = "URLs that need to be configured in terraform.tfvars for Cognito callback"
   value = var.cognito_config.enabled ? {
-    api_gateway_callback_url = "${module.rest_api.invoke_url}/auth/callback"
+    api_gateway_callback_url = "${module.rest_api.invoke_url}/callback"
     frontend_logout_url      = "https://${module.frontend_bucket.s3_bucket_website_endpoint}/"
     instructions = "Update these URLs in terraform.tfvars cognito_config section and redeploy"
   } : null
