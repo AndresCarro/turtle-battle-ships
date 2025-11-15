@@ -215,6 +215,12 @@ module "dynamodb_shots" {
   tags = local.tags
 }
 
+# SQS queue for events (e.g. S3 notifications -> queue -> lambda)
+resource "aws_sqs_queue" "events" {
+  name = var.events_queue_name
+  visibility_timeout_seconds = 900
+}
+
 # Lambda Functions
 module "lambda_functions" {
   source   = "./lambda-with-ecr"
@@ -232,13 +238,13 @@ module "lambda_functions" {
   environment_variables = merge(
     each.value.environment_variables,
     {
-      REGION            = var.region
-      DB_HOST           = module.rds.proxy_endpoint
-      DB_PORT           = tostring(module.rds.primary_instance_port)
-      DB_NAME           = module.rds.database_name
-      DB_USER           = module.rds.master_username
-      DB_PASSWORD       = module.rds.db_password
-      DB_SSL            = "true"  # Enable SSL/TLS for RDS connections
+      REGION      = var.region
+      DB_HOST     = module.rds.proxy_endpoint
+      DB_PORT     = tostring(module.rds.primary_instance_port)
+      DB_NAME     = module.rds.database_name
+      DB_USER     = module.rds.master_username
+      DB_PASSWORD = module.rds.db_password
+      DB_SSL      = "true" # Enable SSL/TLS for RDS connections
     }
   )
 
@@ -315,15 +321,15 @@ module "backend" {
   environment_variables = merge(
     var.backend_config.environment_variables,
     {
-      REGION            = var.region
-      DB_HOST           = var.rds_config.create_rds_proxy ? module.rds.proxy_endpoint : module.rds.primary_instance_address
-      DB_PORT           = tostring(module.rds.primary_instance_port)
-      DB_NAME           = module.rds.database_name
-      DB_USER           = module.rds.master_username
-      DB_PASSWORD       = module.rds.db_password
-      DB_SSL            = "true"  # Enable SSL/TLS for RDS connections
+      REGION      = var.region
+      DB_HOST     = var.rds_config.create_rds_proxy ? module.rds.proxy_endpoint : module.rds.primary_instance_address
+      DB_PORT     = tostring(module.rds.primary_instance_port)
+      DB_NAME     = module.rds.database_name
+      DB_USER     = module.rds.master_username
+      DB_PASSWORD = module.rds.db_password
+      DB_SSL      = "true" # Enable SSL/TLS for RDS connections
       # S3 Configuration
-      BUCKET_NAME       = var.replays_bucket.name
+      BUCKET_NAME = var.text_replays_bucket.name
       # DynamoDB Configuration
       DYNAMO_TABLE_NAME = module.dynamodb_shots.table_name
       DYNAMO_REGION     = var.region
@@ -407,20 +413,20 @@ module "rest_api" {
 }
 
 # S3 Bucket for Game Replays
-module "replays_bucket" {
+module "text_replays_bucket" {
   source  = "terraform-aws-modules/s3-bucket/aws"
   version = "~> 3.15"
 
-  bucket = var.replays_bucket.name
+  bucket = var.text_replays_bucket.name
 
   versioning = {
-    enabled = var.replays_bucket.versioning_enabled
+    enabled = var.text_replays_bucket.versioning_enabled
   }
 
-  server_side_encryption_configuration = var.replays_bucket.encryption_enabled ? {
+  server_side_encryption_configuration = var.text_replays_bucket.encryption_enabled ? {
     rule = {
       apply_server_side_encryption_by_default = {
-        sse_algorithm = var.replays_bucket.sse_algorithm
+        sse_algorithm = var.text_replays_bucket.sse_algorithm
       }
     }
   } : null
@@ -435,6 +441,110 @@ module "replays_bucket" {
   tags = local.tags
 }
 
+# Allow S3 replays bucket to notify SQS queue on new object creation
+resource "aws_s3_bucket_notification" "replays_to_sqs" {
+  bucket = module.text_replays_bucket.s3_bucket_id
+
+  queue {
+    queue_arn = aws_sqs_queue.events.arn
+    events    = ["s3:ObjectCreated:*"]
+  }
+
+  depends_on = [aws_sqs_queue.events, module.text_replays_bucket]
+}
+
+# SQS policy to allow S3 to send messages to the queue
+resource "aws_sqs_queue_policy" "allow_s3_send" {
+  queue_url = aws_sqs_queue.events.id
+
+  policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [
+      {
+        Sid       = "Allow-All-From-LabRole",
+        Effect    = "Allow",
+        Principal = { AWS = data.aws_iam_role.lab_role.arn },
+        Action    = "SQS:*",
+        Resource  = aws_sqs_queue.events.arn
+      },
+      {
+        Sid       = "Allow-S3-SendMessage",
+        Effect    = "Allow",
+        Principal = { Service = "s3.amazonaws.com" },
+        Action    = "sqs:SendMessage",
+        Resource  = aws_sqs_queue.events.arn,
+        Condition = {
+          ArnLike = {
+            "aws:SourceArn" = "arn:aws:s3:::${module.text_replays_bucket.s3_bucket_id}"
+          }
+        }
+      }
+    ]
+  })
+}
+
+# S3 bucket to store rendered video replays
+module "video_replays_bucket" {
+  source  = "terraform-aws-modules/s3-bucket/aws"
+  version = "~> 3.15"
+
+  bucket = var.video_replays_bucket.name
+
+  versioning = {
+    enabled = var.video_replays_bucket.versioning_enabled
+  }
+
+  server_side_encryption_configuration = var.video_replays_bucket.encryption_enabled ? {
+    rule = {
+      apply_server_side_encryption_by_default = {
+        sse_algorithm = var.video_replays_bucket.sse_algorithm
+      }
+    }
+  } : null
+
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
+
+  force_destroy = true
+
+  tags = local.tags
+}
+
+# Lambda (video renderer) that consumes messages from the SQS events queue
+module "lambda_video_renderer" {
+  source = "./lambda-with-ecr"
+
+  function_name   = var.video_renderer_lambda.function_name
+  dockerfile_path = var.video_renderer_lambda.dockerfile_path
+  role_arn        = data.aws_iam_role.lab_role.arn
+  region          = var.region
+
+  memory_size = lookup(var.video_renderer_lambda, "memory_size", 512)
+  timeout     = lookup(var.video_renderer_lambda, "timeout", 60)
+
+  environment_variables = merge(
+    lookup(var.video_renderer_lambda, "environment_variables", {}),
+    {
+      REGION = var.region
+    }
+  )
+
+  tags = merge(local.tags, { Function = var.video_renderer_lambda.function_name })
+
+  depends_on = [aws_sqs_queue.events, module.text_replays_bucket, module.video_replays_bucket]
+}
+
+# Event source mapping so the Lambda consumes messages from the SQS queue
+resource "aws_lambda_event_source_mapping" "video_renderer_from_sqs" {
+  event_source_arn = aws_sqs_queue.events.arn
+  function_name    = module.lambda_video_renderer.function_arn
+  batch_size       = 1
+  enabled          = true
+
+  depends_on = [module.lambda_video_renderer, aws_sqs_queue.events]
+}
 
 # Build Frontend React Project
 resource "terraform_data" "build_frontend" {
@@ -455,7 +565,8 @@ resource "terraform_data" "build_frontend" {
   depends_on = [
     module.backend,
     module.lambda_functions,
-    module.rest_api
+    module.rest_api,
+    module.lambda_video_renderer,
   ]
 }
 
@@ -480,8 +591,8 @@ module "frontend_bucket" {
 
   block_public_acls       = true
   ignore_public_acls      = true
-  block_public_policy     = false   
-  restrict_public_buckets = false   
+  block_public_policy     = false
+  restrict_public_buckets = false
 
   # Política pública de solo lectura
   attach_policy = true
@@ -510,7 +621,7 @@ locals {
 resource "aws_s3_object" "frontend_upload" {
   for_each = toset(local.frontend_files)
 
-  bucket = module.frontend_bucket.s3_bucket_id 
+  bucket = module.frontend_bucket.s3_bucket_id
   key    = each.value
   source = "../frontend/dist/${each.value}"
   etag   = filemd5("../frontend/dist/${each.value}")

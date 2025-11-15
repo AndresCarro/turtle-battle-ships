@@ -1,5 +1,5 @@
 # Project Configuration
-project_name = "turtle-battle-ships"
+project_name = "turtle-battleships"
 environment  = "dev"
 
 common_tags = {
@@ -33,15 +33,15 @@ vpc_endpoints_config = [
 ]
 
 # S3 Buckets
-replays_bucket = {
-  name               = "turtle-battle-ships-replays-sample"
+text_replays_bucket = {
+  name               = "turtle-battleships-replays-sample"
   versioning_enabled = false
   encryption_enabled = true
   sse_algorithm      = "AES256"
 }
 
 frontend_bucket = {
-  name            = "turtle-battle-ships-frontend-sample"
+  name            = "turtle-battleships-frontend-sample"
   website_enabled = true
   index_document  = "index.html"
   error_document  = "index.html"
@@ -172,3 +172,26 @@ lambda_functions = [
     security_group_ids = []
   }
 ]
+
+# SQS queue for events (S3 notifications will post here)
+events_queue_name = "turtle-battleships-events-sample"
+
+# Video replays bucket configuration
+video_replays_bucket = {
+  name               = "turtle-battleships-video-replays-sample"
+  versioning_enabled = false
+  encryption_enabled = true
+  sse_algorithm      = "AES256"
+}
+
+# Video renderer lambda configuration
+video_renderer_lambda = {
+  function_name         = "turtle-battleships-video-renderer"
+  dockerfile_path       = "../lambdas/video-renderer-lambda"
+  memory_size           = 1024
+  timeout               = 900
+  environment_variables = {
+    INPUT_BUCKET = "turtle-battleships-text-replays-sample"
+    OUTPUT_BUCKET = "turtle-battleships-video-replays-sample"
+  }
+}

@@ -75,7 +75,7 @@ variable "vpc_endpoints_config" {
 }
 
 # S3 Buckets Configuration
-variable "replays_bucket" {
+variable "text_replays_bucket" {
   description = "Configuration for the game replays bucket"
   type = object({
     name               = string
@@ -183,4 +183,31 @@ variable "lambda_functions" {
     subnet_names          = list(string)
     security_group_ids    = list(string)
   }))
+}
+
+# New variables added for SQS, video replays bucket and renderer lambda
+variable "events_queue_name" {
+  description = "Name for the SQS queue used for events/notifications"
+  type        = string
+}
+
+variable "video_renderer_lambda" {
+  description = "Configuration map for the video renderer lambda"
+  type        = object({
+    function_name         = string
+    dockerfile_path       = string
+    memory_size           = number
+    timeout               = number
+    environment_variables = map(string)
+  })
+}
+
+variable "video_replays_bucket" {
+  description = "S3 bucket configuration for video replays"
+  type = object({
+    name               = string
+    versioning_enabled = bool
+    encryption_enabled = bool
+    sse_algorithm      = string
+  })
 }
