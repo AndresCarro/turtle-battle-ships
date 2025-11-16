@@ -1,0 +1,28 @@
+{
+  "name": "list-game-rooms-lambda",
+  "version": "1.0.1",
+  "description": "Lambda function to list game rooms",
+  "main": "dist/handler.js",
+  "scripts": {
+    "build": "tsc",
+    "package": "npm run build && zip -r function.zip dist node_modules",
+    "deploy": "npm run package && aws lambda update-function-code --function-name create-user --zip-file fileb://function.zip"
+  },
+  "keywords": [
+    "lambda",
+    "aws",
+    "user"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@types/aws-lambda": "^8.10.145",
+    "aws-sdk": "^2.1691.0",
+    "pg": "^8.11.3"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "@types/pg": "^8.10.9",
+    "typescript": "^5.4.5"
+  }
+}

@@ -390,11 +390,11 @@ module "rest_api" {
       enable_cors  = true
     },
     {
-      path_part    = "callback"
+      path_part    = "friends"
       http_methods = ["GET"]
-      lambda_arn   = module.lambda_functions["turtle-battleships-auth-callback"].function_invoke_arn
-      lambda_name  = module.lambda_functions["turtle-battleships-auth-callback"].function_name
-      enable_cors  = false # No CORS needed for redirect endpoints
+      lambda_arn   = module.lambda_functions["turtle-battleships-list-friends"].function_invoke_arn
+      lambda_name  = module.lambda_functions["turtle-battleships-list-friends"].function_name
+      enable_cors  = true
     }
   ]
 
@@ -458,7 +458,7 @@ resource "aws_s3_bucket_notification" "replays_to_sqs" {
     events    = ["s3:ObjectCreated:*"]
   }
 
-  depends_on = [aws_sqs_queue.events, module.text_replays_bucket]
+  depends_on = [aws_sqs_queue_policy.allow_s3_send]
 }
 
 # SQS policy to allow S3 to send messages to the queue

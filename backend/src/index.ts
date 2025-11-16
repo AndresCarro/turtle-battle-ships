@@ -14,6 +14,7 @@ import router from './routes/games';
 import { setSocketIOInstance } from './services/games-service';
 import { setupGameSockets } from './sockets/game-sockets';
 import { initTables } from './dynamo-client';
+import { initializeDatabase } from './init-db';
 
 const app = express();
 const server = createServer(app);
@@ -30,6 +31,17 @@ app.use(express.json());
 AppDataSource.initialize()
   .then(async () => {
     console.log('Data Source has been initialized!');
+    
+    console.log('🔄 About to initialize database schema...');
+    try {
+      // Initialize database schema (create missing tables)
+      await initializeDatabase();
+      console.log('✅ Database initialization completed successfully');
+    } catch (error) {
+      console.error('❌ Fatal error during database initialization:', error);
+      throw error;
+    }
+    
     app.use('/', router);
 
     await initTables();

@@ -1,7 +1,7 @@
 import { Column, Entity, PrimaryGeneratedColumn } from "typeorm";
 
 
-@Entity()
+@Entity('user')
 export class User {
     @PrimaryGeneratedColumn()
     id!: number;
@@ -9,9 +9,9 @@ export class User {
     @Column()
     name!: string;
 
-    @Column({ default: 0 })
+    @Column({ name: 'total_games', default: 0 })
     totalGames!: number;
 
-    @Column({ default: 0 })
+    @Column({ name: 'total_wins', default: 0 })
     totalWins!: number;
 }
