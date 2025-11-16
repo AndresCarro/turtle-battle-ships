@@ -13,6 +13,7 @@ import {
 import { emitToPlayer } from '../sockets/game-sockets';
 import { Shot, ShotSuccess } from '../models/Shot';
 import { saveGameReplay } from './game-replay-services';
+import { UserService } from './user-service';
 
 let socketIOInstance: Server | null = null;
 const gameRepo = new GameRepository();
@@ -204,6 +205,10 @@ export const postShotService = async (
   const opponentUsername =
     game.player1 === username ? game.player2 : game.player1;
 
+  if (!opponentUsername) {
+    throw Error(`Opponent user for the current game could not be found`);
+  }
+
   const opponentShips = await getFleetsService(gameId, opponentUsername);
 
   let shotSuccess = ShotSuccess.miss;
@@ -252,13 +257,18 @@ export const postShotService = async (
   const updatedGame = await getGameService(gameId);
   emitGameStateUpdate(gameId, updatedGame, socketIOInstance);
 
-  if (await checkIfGameFinished(updatedGame, username)) {
+  if (await isGameFinsihed(updatedGame, username)) {
     await gameRepo.finishGame(game.id, username);
     const updatedGame = await getGameService(gameId);
     emitToGameRoom(gameId, 'game-finished', {
       winner: username,
       game: updatedGame,
     });
+
+    await UserService.incrementUserTotalGames(username);
+    await UserService.incrementUserTotalGames(opponentUsername);
+    await UserService.incrementUserTotalWins(username);
+
     saveGameReplay(game.id);
     return shot;
   }
@@ -315,7 +325,7 @@ function getShotPositions(shots: Shot[]) {
   return shots.map((s) => ({ x: s.x, y: s.y }));
 }
 
-async function checkIfGameFinished(
+async function isGameFinsihed(
   game: Game,
   lastShooter: string
 ): Promise<boolean> {
