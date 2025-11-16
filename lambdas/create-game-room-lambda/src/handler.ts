@@ -14,7 +14,6 @@ export const handler = async (
   context: Context
 ): Promise<APIGatewayProxyResult> => {
   try {
-    // Parse request body
     if (!event.body) {
       return {
         statusCode: 400,

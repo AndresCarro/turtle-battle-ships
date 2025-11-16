@@ -138,3 +138,24 @@ output "events_queue_arn" {
   description = "ARN of the events SQS queue"
   value       = aws_sqs_queue.events.arn
 }
+
+# Bastion Host outputs
+output "bastion_public_ip" {
+  description = "Public IP of the bastion host"
+  value       = aws_instance.bastion.public_ip
+}
+
+output "bastion_connection_command" {
+  description = "Command to connect to the bastion host"
+  value       = "ssh -i bastion-key ec2-user@${aws_instance.bastion.public_ip}"
+}
+
+output "rds_tunnel_command" {
+  description = "Command to create SSH tunnel to RDS"
+  value       = "ssh -i bastion-key -L 5432:${module.rds.primary_instance_address}:5432 ec2-user@${aws_instance.bastion.public_ip}"
+}
+
+output "rds_connection_via_tunnel" {
+  description = "Connection string for RDS via SSH tunnel"
+  value       = "psql -h localhost -p 5432 -U ${module.rds.master_username} -d ${module.rds.database_name}"
+}

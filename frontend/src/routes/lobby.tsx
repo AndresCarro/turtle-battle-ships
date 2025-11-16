@@ -14,11 +14,13 @@ import {
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { GameRoomService } from '@/services/game-room-service';
+import { FriendService } from '@/services/friend-service';
 import { useMainStore } from '@/store/main-store';
 import type { GameRoom, Player } from '@/types';
 import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router';
 import { Ban, ChartLine, Crown, Plus, RefreshCw } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { toast } from 'sonner';
 
 export const Route = createFileRoute('/lobby')({
   beforeLoad: () => {
@@ -51,6 +53,9 @@ function RouteComponent() {
     { id: '3', name: 'Friend 3', totalWins: 8, totalGames: 12 },
   ];
   const [gameRoom, setGameRoom] = useState('');
+  const [friendId, setFriendId] = useState('');
+  const [isAddingFriend, setIsAddingFriend] = useState(false);
+  const [showAddFriendDialog, setShowAddFriendDialog] = useState(false);
 
   async function handleCreateRoom() {
     const gameRoomResult = await GameRoomService.createGameRoom(
@@ -58,9 +63,14 @@ function RouteComponent() {
       player.name
     );
     if (!gameRoomResult) {
-      alert('Failed to create game room. Please try again.');
+      toast.error('Failed to create game room', {
+        description: 'Please try again or check your connection.'
+      });
       return;
     }
+    toast.success('Game room created successfully!', {
+      description: `Room "${gameRoomResult.name}" is ready to play.`
+    });
     setGameRoomInStore({
       id: gameRoomResult.id,
       name: gameRoomResult.name,
@@ -72,6 +82,52 @@ function RouteComponent() {
       winner: gameRoomResult.winner,
     });
     navigate({ to: '/game' });
+  }
+
+  async function handleAddFriend() {
+    if (!friendId.trim()) {
+      toast.error('Missing friend ID', {
+        description: 'Please enter a friend ID to send a request.'
+      });
+      return;
+    }
+
+    const friendIdNumber = parseInt(friendId.trim());
+    if (isNaN(friendIdNumber)) {
+      toast.error('Invalid friend ID', {
+        description: 'Friend ID must be a valid number.'
+      });
+      return;
+    }
+
+    if (friendIdNumber === parseInt(player.id)) {
+      toast.error('Invalid friend request', {
+        description: 'You cannot add yourself as a friend.'
+      });
+      return;
+    }
+
+    setIsAddingFriend(true);
+    try {
+      const result = await FriendService.addFriend(parseInt(player.id), friendIdNumber);
+      if (result.success) {
+        toast.success('Friend request sent! 🎉', {
+          description: `Request sent to user ${friendIdNumber}. Status: ${result.friendship?.status || 'pending'}`
+        });
+        setFriendId('');
+        setShowAddFriendDialog(false);
+      } else {
+        toast.error('Failed to send friend request', {
+          description: result.message || 'Please try again later.'
+        });
+      }
+    } catch (error) {
+      toast.error('Error sending friend request', {
+        description: error instanceof Error ? error.message : 'Unknown error occurred'
+      });
+    } finally {
+      setIsAddingFriend(false);
+    }
   }
 
   return (
@@ -158,7 +214,18 @@ function RouteComponent() {
                 Past Games
               </TabsTrigger>
             </TabsList>
-            <TabsContent value="friends">
+            <TabsContent value="friends" className="space-y-4 pt-4">
+              <div className="w-full">
+                <Button 
+                  variant="outline" 
+                  size="default" 
+                  className="w-full flex items-center justify-center gap-2 h-10 border-2 border-dashed border-gray-300 hover:border-gray-400 text-gray-700 hover:text-gray-900 bg-white hover:bg-gray-50"
+                  onClick={() => setShowAddFriendDialog(true)}
+                >
+                  <Plus className="h-4 w-4" />
+                  Add Friend
+                </Button>
+              </div>
               <div className="flex flex-col gap-y-2">
                 {friends.map((friend, idx) => (
                   <FriendEntry
@@ -179,6 +246,31 @@ function RouteComponent() {
           </Tabs>
         </CardContent>
       </Card>
+
+      {/* Add Friend Dialog */}
+      <Dialog open={showAddFriendDialog} onOpenChange={setShowAddFriendDialog}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Add a new friend</DialogTitle>
+          </DialogHeader>
+          <Input
+            value={friendId}
+            onChange={(e) => setFriendId(e.target.value)}
+            type="text"
+            placeholder="Enter friend's ID (e.g. 123)"
+            required
+          />
+          <DialogFooter>
+            <Button
+              className="cursor-pointer"
+              disabled={friendId.trim() === '' || isAddingFriend}
+              onClick={handleAddFriend}
+            >
+              {isAddingFriend ? 'Sending...' : 'Send Friend Request'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

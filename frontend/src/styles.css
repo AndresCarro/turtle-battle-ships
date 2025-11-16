@@ -134,3 +134,41 @@ code {
     @apply bg-background text-foreground;
   }
 }
+
+/* Toast/Sonner specific styles */
+[data-sonner-toaster] {
+  font-family: inherit !important;
+}
+
+[data-sonner-toast] {
+  background: var(--popover) !important;
+  border: 1px solid var(--border) !important;
+  color: var(--popover-foreground) !important;
+  border-radius: var(--radius) !important;
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1) !important;
+}
+
+[data-sonner-toast][data-type="success"] {
+  background: var(--popover) !important;
+  border: 1px solid hsl(142 76% 36%) !important;
+}
+
+[data-sonner-toast][data-type="error"] {
+  background: var(--popover) !important;
+  border: 1px solid var(--destructive) !important;
+}
+
+[data-sonner-toast] [data-title] {
+  color: var(--popover-foreground) !important;
+  font-weight: 600 !important;
+  font-size: 14px !important;
+  line-height: 1.4 !important;
+}
+
+[data-sonner-toast] [data-description] {
+  color: var(--muted-foreground) !important;
+  font-size: 13px !important;
+  line-height: 1.5 !important;
+  opacity: 0.9 !important;
+  margin-top: 2px !important;
+}

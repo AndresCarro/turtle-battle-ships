@@ -1,5 +1,5 @@
 import { AppDataSource } from "../data-source";
-import { User } from "../entities/User";
+import { User } from "../entities/postgres/User";
 
 const userRepository = AppDataSource.getRepository(User);
 

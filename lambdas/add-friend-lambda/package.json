@@ -1,0 +1,23 @@
+{
+  "name": "add-friend-lambda",
+  "version": "1.0.0",
+  "description": "Lambda function to add friends between users",
+  "main": "dist/handler.js",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": ["aws", "lambda", "friends", "social"],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@types/aws-lambda": "^8.10.114",
+    "pg": "^8.8.0"
+  },
+  "devDependencies": {
+    "@types/node": "^18.15.11",
+    "@types/pg": "^8.6.6",
+    "typescript": "^5.0.4"
+  }
+}
