@@ -14,6 +14,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { GameRoomService } from '@/services/game-room-service';
+import { UserService } from '@/services/user-service';
 import { useMainStore } from '@/store/main-store';
 import type { GameRoom, Player } from '@/types';
 import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router';
@@ -34,6 +35,7 @@ function RouteComponent() {
   const navigate = useNavigate();
   const setGameRoomInStore = useMainStore((state) => state.setGameRoom);
   const [gameRooms, setGameRooms] = useState<GameRoom[]>([]);
+  const [friendsList, setFriendsList] = useState<Player[]>([]);
 
   const player = useMainStore((state) => state.player)!;
 
@@ -42,14 +44,14 @@ function RouteComponent() {
       setGameRooms(await GameRoomService.getGameRooms());
     };
 
+    const fetchFriendsList = async () => {
+      setFriendsList(await UserService.getFriendsListFromUser(player.name))
+    }
+
     fetchGameRooms();
+    fetchFriendsList();
   }, []);
 
-  const friends: Player[] = [
-    { id: '1', name: 'Friend 1', totalWins: 10, totalGames: 20 },
-    { id: '2', name: 'Friend 2', totalWins: 5, totalGames: 15 },
-    { id: '3', name: 'Friend 3', totalWins: 8, totalGames: 12 },
-  ];
   const [gameRoom, setGameRoom] = useState('');
 
   async function handleCreateRoom() {
@@ -160,11 +162,10 @@ function RouteComponent() {
             </TabsList>
             <TabsContent value="friends">
               <div className="flex flex-col gap-y-2">
-                {friends.map((friend, idx) => (
+                {friendsList.map((friend) => (
                   <FriendEntry
                     key={friend.id}
                     friend={friend}
-                    isConnected={idx % 2 === 0}
                   />
                 ))}
               </div>
