@@ -38,22 +38,6 @@ export function GameRoomEntry({ room }: { room: GameRoom }) {
     }
   }
 
-  async function handleNavigateToReplay() {
-    try {
-      const replayUrl = await GameRoomService.getReplay(room.id);
-
-      // Abrir la URL externa reemplazando toda la ventana
-      window.location.href = replayUrl;
-    } catch (err: any) {
-      if (err?.statusCode === 404) {
-        alert('Replay no encontrado para esta partida.');
-      } else {
-        console.error(err);
-        alert('Ocurrió un error al obtener el replay.');
-      }
-    }
-  }
-
   return (
     <div className="p-4 border rounded-lg hover:bg-muted flex flex-col @md:flex-row @md:items-center justify-between gap-4">
       <div className="grow flex flex-col gap-1">
@@ -79,15 +63,17 @@ export function GameRoomEntry({ room }: { room: GameRoom }) {
         </Button>
       )}
 
-      {room.status === GameRoomStatuses.FINISHED && (
+      {room.status === GameRoomStatuses.FINISHED && room.replayUrl && (
         <Button
           size="sm"
           variant="outline"
           className="cursor-pointer w-full @md:w-auto"
-          onClick={handleNavigateToReplay}
+          asChild
         >
-          <Clapperboard className="size-4" />
-          See Replay
+          <a href={room.replayUrl} target="_blank">
+            <Clapperboard className="size-4" />
+            See Replay
+          </a>
         </Button>
       )}
     </div>

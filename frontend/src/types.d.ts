@@ -47,6 +47,7 @@ export type GameRoom = {
   player2: string | null;
   ships?: Ship[];
   shots?: Shot[];
+  replayUrl?: string;
 };
 
 export type Message = {

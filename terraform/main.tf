@@ -217,7 +217,7 @@ module "dynamodb_shots" {
 
 # SQS queue for events (e.g. S3 notifications -> queue -> lambda)
 resource "aws_sqs_queue" "events" {
-  name = var.events_queue_name
+  name                       = var.events_queue_name
   visibility_timeout_seconds = 900
 }
 
@@ -238,13 +238,14 @@ module "lambda_functions" {
   environment_variables = merge(
     each.value.environment_variables,
     {
-      REGION      = var.region
-      DB_HOST     = module.rds.proxy_endpoint
-      DB_PORT     = tostring(module.rds.primary_instance_port)
-      DB_NAME     = module.rds.database_name
-      DB_USER     = module.rds.master_username
-      DB_PASSWORD = module.rds.db_password
-      DB_SSL      = "true" # Enable SSL/TLS for RDS connections
+      REGION                    = var.region
+      DB_HOST                   = module.rds.proxy_endpoint
+      DB_PORT                   = tostring(module.rds.primary_instance_port)
+      DB_NAME                   = module.rds.database_name
+      DB_USER                   = module.rds.master_username
+      DB_PASSWORD               = module.rds.db_password
+      DB_SSL                    = "true", # Enable SSL/TLS for RDS connections
+      VIDEO_REPLAYS_BUCKET_NAME = var.video_replays_bucket.name
     }
   )
 
@@ -393,7 +394,7 @@ module "rest_api" {
       http_methods = ["GET"]
       lambda_arn   = module.lambda_functions["turtle-battleships-auth-callback"].function_invoke_arn
       lambda_name  = module.lambda_functions["turtle-battleships-auth-callback"].function_name
-      enable_cors  = false  # No CORS needed for redirect endpoints
+      enable_cors  = false # No CORS needed for redirect endpoints
     }
   ]
 

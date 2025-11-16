@@ -5,6 +5,7 @@ import {
 } from "aws-lambda";
 import { GameRoomsResponse } from "./types";
 import { getGameRooms } from "./db";
+import { getPresignedUrl } from "./s3";
 
 /**
  * Lambda handler function to list game rooms
@@ -15,6 +16,12 @@ export const handler = async (
 ): Promise<APIGatewayProxyResult> => {
   try {
     const gameRooms = await getGameRooms();
+
+    for (const game of gameRooms) {
+      if (game.s3Key) {
+        game.replayUrl = await getPresignedUrl(game.s3Key);
+      }
+    }
 
     const response: GameRoomsResponse = {
       games: gameRooms,

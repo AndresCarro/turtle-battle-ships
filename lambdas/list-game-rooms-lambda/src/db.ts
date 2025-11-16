@@ -34,17 +34,21 @@ export async function getGameRooms(): Promise<Game[]> {
   try {
     // Query to fetch all games from the game_postgres table
     const query = `
-      SELECT 
-        id, 
-        player1, 
-        player2, 
-        name, 
-        "currentTurn", 
-        winner, 
-        "creationTimestamp", 
-        status
-      FROM game_postgres
-      ORDER BY "creationTimestamp" DESC
+      SELECT
+        gp.id,
+        gp.player1,
+        gp.player2,
+        gp.name,
+        gp."currentTurn",
+        gp.winner,
+        gp."creationTimestamp",
+        gp.status,
+        replay."s3Key" AS "s3Key"
+      FROM game_postgres gp
+      LEFT JOIN LATERAL (
+        SELECT "s3Key" FROM game_replay_postgres WHERE "gameId" = gp.id LIMIT 1
+      ) replay ON TRUE
+      ORDER BY gp."creationTimestamp" DESC
     `;
 
     const result = await client.query(query);
@@ -62,7 +66,8 @@ export async function getGameRooms(): Promise<Game[]> {
           row.creationTimestamp,
           row.status,
           [], // ships - empty
-          [] // shots - empty
+          [], // shots - empty
+          row.s3Key
         )
     );
 

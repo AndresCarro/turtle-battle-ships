@@ -90,7 +90,9 @@ export class Game {
     public creationTimestamp?: Date,
     public status: GameStatus = GameStatus.WAITING_FOR_PLAYER,
     public ships: Ship[] = [],
-    public shots: Shot[] = []
+    public shots: Shot[] = [],
+    public s3Key?: string,
+    public replayUrl?: string
   ) {}
 
   static create(props: { id?: number; player1: string; name: string }): Game {
