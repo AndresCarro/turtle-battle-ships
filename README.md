@@ -570,6 +570,22 @@ Apply the Terraform configuration to create resources:
 
 ```bash
 terraform apply -target=terraform_data.build_frontend
+```
+
+After this, copy the `backend_url` output and set it in the `terraform.tfvars` file under `cognito_config.callback_url`, it should look like this:
+
+```hcl
+cognito_config = {
+  enabled       = true
+  callback_url = "https://<backend_url>/callback"
+  logout_url   = ""
+}
+```
+
+Then, run the full apply:
+
+```bash
+terraform apply -target=terraform_data.build_frontend
 terraform apply
 ```
 

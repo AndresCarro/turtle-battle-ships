@@ -16,8 +16,7 @@ export interface CognitoTokenResponse {
 export interface UserInfo {
   sub: string;
   email: string;
-  name?: string;
-  email_verified: boolean;
+  username: string;
 }
 
 export interface AuthErrorResponse {

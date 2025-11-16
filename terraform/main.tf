@@ -53,7 +53,7 @@ locals {
     var.common_tags,
     {
       Project     = var.project_name
-      Environment = var.environment
+      # Environment tag removed (no var.environment available)
     }
   )
 
@@ -212,7 +212,6 @@ module "dynamodb_shots" {
     attribute_name = var.dynamodb_shots_table.ttl_attribute_name
   }
 
-  tags = local.tags
 }
 
 # SQS queue for events (e.g. S3 notifications -> queue -> lambda)
@@ -357,7 +356,7 @@ module "rest_api" {
 
   api_name        = "${var.project_name}-rest-api"
   api_description = "REST API Gateway for Turtle Battleships Lambda functions"
-  stage_name      = var.environment
+  stage_name      = var.project_name
 
   # Lambda integrations - create endpoints for each Lambda function
   lambda_integrations = [
@@ -395,6 +394,13 @@ module "rest_api" {
       lambda_arn   = module.lambda_functions["turtle-battleships-list-friends"].function_invoke_arn
       lambda_name  = module.lambda_functions["turtle-battleships-list-friends"].function_name
       enable_cors  = true
+    },
+    {
+      path_part    = "callback"
+      http_methods = ["GET"]
+      lambda_arn   = module.auth_callback_lambda.function_invoke_arn
+      lambda_name  = module.auth_callback_lambda.function_name
+      enable_cors  = false # No CORS needed for redirect endpoints
     }
   ]
 
@@ -416,8 +422,79 @@ module "rest_api" {
 
   depends_on = [
     aws_api_gateway_account.main,
-    module.lambda_functions
+    module.lambda_functions,
+    module.auth_callback_lambda
   ]
+}
+
+resource "aws_cognito_user_pool" "main" {
+  count = var.cognito_config.enabled ? 1 : 0
+
+  name = "${var.project_name}-user-pool"
+
+  auto_verified_attributes = ["email"]
+  schema {
+    name                = "email"
+    attribute_data_type = "String"
+    required            = true
+    mutable             = true
+  }
+
+  tags = local.tags
+}
+
+resource "aws_cognito_user_pool_client" "app" {
+  count       = var.cognito_config.enabled ? 1 : 0
+  name        = "${var.project_name}-app-client"
+  user_pool_id = aws_cognito_user_pool.main[0].id
+
+  explicit_auth_flows = ["ALLOW_USER_SRP_AUTH", "ALLOW_REFRESH_TOKEN_AUTH"]
+
+  allowed_oauth_flows                       = ["code"]
+  allowed_oauth_scopes                      = ["email", "openid", "profile"]
+  allowed_oauth_flows_user_pool_client     = true
+  supported_identity_providers             = ["COGNITO"]
+  callback_urls                             = length(var.cognito_config.callback_url) > 0 ? [var.cognito_config.callback_url] : []
+  logout_urls                               = []
+  generate_secret                           = true
+
+  prevent_user_existence_errors = "ENABLED"
+}
+
+resource "aws_cognito_user_pool_domain" "hosted" {
+  count        = var.cognito_config.enabled ? 1 : 0
+  domain       = "${var.project_name}"
+  user_pool_id = aws_cognito_user_pool.main[0].id
+}
+
+# Separate module to create the auth callback lambda (builds existing code in /lambdas/auth-callback-lambda)
+module "auth_callback_lambda" {
+  source = "./lambda-with-ecr"
+
+  function_name   = "${var.project_name}-auth-callback"
+  dockerfile_path = "${path.module}/../lambdas/auth-callback-lambda"
+  region          = var.region
+  role_arn        = data.aws_iam_role.lab_role.arn
+
+  memory_size = 512
+  timeout     = 30
+
+  environment_variables = merge(
+    {
+      FRONTEND_URL       = module.frontend_bucket.s3_bucket_website_endpoint
+      COGNITO_DOMAIN     = var.cognito_config.enabled ? format("cognito-idp.%s.amazonaws.com/%s", var.region, aws_cognito_user_pool.main[0].id) : ""
+      COGNITO_CLIENT_ID  = var.cognito_config.enabled ? aws_cognito_user_pool_client.app[0].id : ""
+      COGNITO_CLIENT_SECRET = var.cognito_config.enabled ? aws_cognito_user_pool_client.app[0].client_secret : ""
+      REGION             = var.region
+    }
+  )
+
+  # Do not put this callback in the VPC; it should be publicly reachable via API Gateway
+  vpc_config = null
+
+  tags = merge(local.tags, { Function = "auth-callback" })
+
+  depends_on = [module.frontend_bucket, aws_cognito_user_pool.main, aws_cognito_user_pool_client.app, aws_cognito_user_pool_domain.hosted]
 }
 
 # S3 Bucket for Game Replays
@@ -554,41 +631,6 @@ resource "aws_lambda_event_source_mapping" "video_renderer_from_sqs" {
   depends_on = [module.lambda_video_renderer, aws_sqs_queue.events]
 }
 
-# Cognito Module (conditional creation)
-module "cognito" {
-  count  = var.cognito_config.enabled ? 1 : 0
-  source = "./cognito"
-
-  project_name  = var.project_name
-  callback_urls = var.cognito_config.callback_urls
-  logout_urls   = var.cognito_config.logout_urls
-  tags          = local.tags
-}
-
-# Build Frontend React Project
-resource "terraform_data" "build_frontend" {
-  triggers_replace = {
-    # Use API Gateway invoke URLs (not ARNs)
-    backend_url    = var.backend_config.enabled ? module.rest_api.invoke_url : "http://localhost:3000"
-    websockets_url = var.backend_config.enabled ? "ws://${module.backend[0].alb_dns_name}" : "ws://localhost:3001"
-
-    # Also rebuild if the build script itself changes
-    build_script_hash = filesha256("${path.module}/build-frontend.sh")
-  }
-
-  provisioner "local-exec" {
-    command     = "${path.module}/build-frontend.sh '${self.triggers_replace.backend_url}' '${self.triggers_replace.websockets_url}' '${path.module}/../frontend'"
-    working_dir = path.module
-  }
-
-  depends_on = [
-    module.backend,
-    module.lambda_functions,
-    module.rest_api,
-    module.lambda_video_renderer,
-  ]
-}
-
 # S3 Bucket for Frontend (SPA)
 module "frontend_bucket" {
   source  = "terraform-aws-modules/s3-bucket/aws"
@@ -629,6 +671,34 @@ module "frontend_bucket" {
   })
 
   tags = local.tags
+}
+
+# Build Frontend React Project
+resource "terraform_data" "build_frontend" {
+  triggers_replace = {
+    # Use API Gateway invoke URLs (not ARNs)
+    backend_url    = var.backend_config.enabled ? module.rest_api.invoke_url : "http://localhost:3000"
+    websockets_url = var.backend_config.enabled ? "ws://${module.backend[0].alb_dns_name}" : "ws://localhost:3001"
+
+    # Also rebuild if the build script itself changes
+    build_script_hash = filesha256("${path.module}/build-frontend.sh")
+    # Cognito build-time values (passed to the frontend build)
+    cognito_domain       = var.cognito_config.enabled ? aws_cognito_user_pool_domain.hosted[0].domain : ""
+    cognito_client_id    = var.cognito_config.enabled ? aws_cognito_user_pool_client.app[0].id : ""
+    cognito_callback_urls = var.cognito_config.enabled ? var.cognito_config.callback_url : ""
+  }
+
+  provisioner "local-exec" {
+    command     = "${path.module}/build-frontend.sh '${self.triggers_replace.backend_url}' '${self.triggers_replace.websockets_url}' '${self.triggers_replace.cognito_domain}' '${self.triggers_replace.cognito_client_id}' '${self.triggers_replace.cognito_callback_urls}' '${path.module}/../frontend'"
+    working_dir = path.module
+  }
+
+  depends_on = [
+    module.backend,
+    module.lambda_functions,
+    module.rest_api,
+    module.lambda_video_renderer,
+  ]
 }
 
 locals {

@@ -217,12 +217,10 @@ variable "cognito_config" {
   description = "Configuration for AWS Cognito"
   type = object({
     enabled       = bool
-    callback_urls = list(string)
-    logout_urls   = list(string)
+    callback_url  = string
   })
   default = {
     enabled       = false
-    callback_urls = []
-    logout_urls   = []
+    callback_url  = ""
   }
 }

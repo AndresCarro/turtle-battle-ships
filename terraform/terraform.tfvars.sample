@@ -196,15 +196,9 @@ video_renderer_lambda = {
   }
 }
 
-# Cognito Configuration  
+# Cognito configuration (example)
+# Set `enabled = true` to create a Cognito User Pool, App Client and Hosted UI.
 cognito_config = {
-  enabled = true
-  callback_urls = [
-    "https://localhost:3000/callback",
-    "http://localhost:3000/callback"
-  ]
-  logout_urls = [
-    "https://localhost:3000/login",
-    "http://localhost:3000/login"
-  ]
+  enabled       = true
+  callback_url = "https://google.com"
 }

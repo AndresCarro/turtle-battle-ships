@@ -20,7 +20,7 @@ export const handler = async (
       console.error('OAuth error received:', { error, error_description });
       
       const frontendUrl = process.env.FRONTEND_URL || 'https://turtle-battleships-frontend-sample.s3-website-us-east-1.amazonaws.com';
-      const errorUrl = `${frontendUrl}/?auth_error=${encodeURIComponent(error)}&error_description=${encodeURIComponent(error_description || '')}`;
+      const errorUrl = `${frontendUrl}?auth_error=${encodeURIComponent(error)}&error_description=${encodeURIComponent(error_description || '')}`;
       
       return {
         statusCode: 302,
@@ -54,10 +54,17 @@ export const handler = async (
     }
     
     console.log('Processing authorization code:', { code: code.substring(0, 10) + '...', state });
-    
-    const result = await processOAuthCallback(code, state);
+
+    // Reconstruct the redirect URI from the incoming request so we don't need it at deploy time.
+    const headers = event.headers || {};
+    const protocol = headers['x-forwarded-proto'] || headers['X-Forwarded-Proto'] || 'https';
+    const host = headers['host'] || headers['Host'] || event.requestContext?.domainName;
+    const path = event.requestContext.path || event.path || '/';
+    const redirectUri = `${protocol}://${host}${path}`;
+
+    const result = await processOAuthCallback(code, state, redirectUri);
     const frontendUrl = process.env.FRONTEND_URL || 'https://turtle-battleships-frontend-sample.s3-website-us-east-1.amazonaws.com';
-    const successUrl = `${frontendUrl}/?auth_success=true&user=${encodeURIComponent(JSON.stringify(result.user))}&access_token=${encodeURIComponent(result.access_token)}&id_token=${encodeURIComponent(result.id_token)}&expires_in=${result.expires_in}${state ? `&state=${encodeURIComponent(state)}` : ''}`;
+    const successUrl = `http://${frontendUrl}?auth_success=true&user=${encodeURIComponent(JSON.stringify(result.user))}&access_token=${encodeURIComponent(result.access_token)}&id_token=${encodeURIComponent(result.id_token)}&expires_in=${result.expires_in}${state ? `&state=${encodeURIComponent(state)}` : ''}`;
     
     console.log('Redirecting to frontend with auth success');
     
