@@ -614,3 +614,4 @@ The project was carried out by:
 * [Andrés Carro Wetzel](https://github.com/AndresCarro)
 * [Juan Segundo Arnaude](https://github.com/juansarnaude)
 * [Nehuén Gabriel Llanos](https://github.com/NehuenLlanos)
+* [The Beatles](https://open.spotify.com/artist/3WrFJ7ztbogyGnTHbHJFl2?si=Znotyj4zQgububNxTAKAaA)
