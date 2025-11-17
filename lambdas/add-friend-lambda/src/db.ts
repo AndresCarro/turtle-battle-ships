@@ -1,6 +1,5 @@
 import { Pool, PoolClient } from 'pg';
 import { AddFriendRequest, FriendshipRecord } from './types';
-import { get } from 'http';
 
 let pool: Pool | null = null;
 
