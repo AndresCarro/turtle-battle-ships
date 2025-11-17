@@ -2,6 +2,12 @@ import 'reflect-metadata';
 import { DataSource } from 'typeorm';
 import { GamePostgres } from './entities/postgres/Game';
 import { User } from './entities/postgres/User';
+<<<<<<< HEAD
+=======
+import { Friendship } from './entities/postgres/Friendship';
+
+import 'reflect-metadata';
+>>>>>>> master
 import { GameReplayPostgres } from './entities/postgres/GameReplay';
 import { Friendship } from './entities/postgres/Friendship';
 
@@ -13,7 +19,7 @@ export const AppDataSource = new DataSource({
   password: process.env.DB_PASSWORD,
   database: process.env.DB_NAME,
   synchronize: true,
-  logging: false,
+  logging: ['error', 'schema', 'warn'],
   ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false,
   entities: [GamePostgres, User, GameReplayPostgres, Friendship],
 });

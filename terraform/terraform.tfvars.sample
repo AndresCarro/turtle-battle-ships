@@ -170,6 +170,19 @@ lambda_functions = [
     vpc_enabled        = true
     subnet_names       = ["private-logic-1", "private-logic-2"]
     security_group_ids = []
+  },
+  {
+    function_name   = "turtle-battleships-list-friends"
+    dockerfile_path = "../lambdas/list-friends-lambda"
+    memory_size     = 512
+    timeout         = 30
+    environment_variables = {
+      ENVIRONMENT = "production"
+    }
+    # Enable VPC to access RDS Proxy
+    vpc_enabled        = true
+    subnet_names       = ["private-logic-1", "private-logic-2"]
+    security_group_ids = []
   }
 ]
 
@@ -196,15 +209,9 @@ video_renderer_lambda = {
   }
 }
 
-# Cognito Configuration  
+# Cognito configuration (example)
+# Set `enabled = true` to create a Cognito User Pool, App Client and Hosted UI.
 cognito_config = {
-  enabled = true
-  callback_urls = [
-    "https://localhost:3000/callback",
-    "http://localhost:3000/callback"
-  ]
-  logout_urls = [
-    "https://localhost:3000/login",
-    "http://localhost:3000/login"
-  ]
+  enabled       = true
+  callback_url = "https://google.com"
 }

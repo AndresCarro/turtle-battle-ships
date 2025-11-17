@@ -3,22 +3,17 @@ node_modules/
 
 # Build output
 dist/
-build/
 
 # Deployment package
 function.zip
-*.zip
 
 # Environment variables
 .env
-.env.*
-!.env.example
+.env.local
 
 # IDE
 .vscode/
 .idea/
-*.swp
-*.swo
 
 # OS
 .DS_Store
@@ -27,16 +22,8 @@ Thumbs.db
 # Logs
 *.log
 npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
 
 # TypeScript
 *.tsbuildinfo
 
-# AWS
-.aws/
-.serverless/
-
-# Coverage
-coverage/
-.nyc_output/
+.env

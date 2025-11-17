@@ -14,11 +14,13 @@ import {
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { GameRoomService } from '@/services/game-room-service';
+import { UserService } from '@/services/user-service';
+import { useAuthStore } from '@/store/auth-store';
 import { FriendService } from '@/services/friend-service';
 import { useMainStore } from '@/store/main-store';
 import type { GameRoom, Player } from '@/types';
 import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router';
-import { Ban, ChartLine, Crown, Plus, RefreshCw } from 'lucide-react';
+import { Ban, ChartLine, Crown, LogOut, Plus, RefreshCw } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 
@@ -35,7 +37,10 @@ export const Route = createFileRoute('/lobby')({
 function RouteComponent() {
   const navigate = useNavigate();
   const setGameRoomInStore = useMainStore((state) => state.setGameRoom);
+  const clearMainStore = useMainStore((state) => state.clear);
+  const clearAuthStore = useAuthStore((state) => state.clearToken);
   const [gameRooms, setGameRooms] = useState<GameRoom[]>([]);
+  const [friendsList, setFriendsList] = useState<Player[]>([]);
 
   const player = useMainStore((state) => state.player)!;
 
@@ -44,14 +49,14 @@ function RouteComponent() {
       setGameRooms(await GameRoomService.getGameRooms());
     };
 
+    const fetchFriendsList = async () => {
+      setFriendsList(await UserService.getFriendsListFromUser(player.name))
+    }
+
     fetchGameRooms();
+    fetchFriendsList();
   }, []);
 
-  const friends: Player[] = [
-    { id: '1', name: 'Friend 1', totalWins: 10, totalGames: 20 },
-    { id: '2', name: 'Friend 2', totalWins: 5, totalGames: 15 },
-    { id: '3', name: 'Friend 3', totalWins: 8, totalGames: 12 },
-  ];
   const [gameRoom, setGameRoom] = useState('');
   const [friendId, setFriendId] = useState('');
   const [isAddingFriend, setIsAddingFriend] = useState(false);
@@ -82,6 +87,12 @@ function RouteComponent() {
       winner: gameRoomResult.winner,
     });
     navigate({ to: '/game' });
+  }
+
+  function handleLogout() {
+    clearMainStore();
+    clearAuthStore();
+    navigate({ to: '/' });
   }
 
   async function handleAddFriend() {
@@ -183,25 +194,37 @@ function RouteComponent() {
         </CardContent>
       </Card>
       <Card className="w-full overflow-y-auto">
-        <CardHeader className="flex flex-col justify-start">
-          <h1 className="text-2xl font-bold grow">😉 Welcome, {player.name}</h1>
-          <div className="flex items-center gap-2">
-            <Badge variant="secondary">
-              <Crown className="size-4" />
-              <span className="font-medium">{player.totalWins} wins</span>
-            </Badge>
-            <Badge variant="secondary">
-              <Ban className="size-4" />
-              <span className="font-medium">
-                {player.totalGames - player.totalWins} loses
-              </span>
-            </Badge>
-            <Badge variant="secondary">
-              <ChartLine className="size-4" />
-              <span className="font-medium">
-                Ratio: {(player.totalWins / player.totalGames).toFixed(2)}
-              </span>
-            </Badge>
+        <CardHeader className="flex justify-between">
+          <div className="flex flex-col justify-start gap-1.5">
+            <h1 className="text-2xl font-bold grow">😉 Welcome, {player.name}</h1>
+            <div className="flex items-center gap-2">
+              <Badge variant="secondary">
+                <Crown className="size-4" />
+                <span className="font-medium">{player.totalWins} wins</span>
+              </Badge>
+              <Badge variant="secondary">
+                <Ban className="size-4" />
+                <span className="font-medium">
+                  {player.totalGames - player.totalWins} loses
+                </span>
+              </Badge>
+              <Badge variant="secondary">
+                <ChartLine className="size-4" />
+                <span className="font-medium">
+                  Ratio: {(player.totalWins / player.totalGames).toFixed(2)}
+                </span>
+              </Badge>
+            </div>
+          </div>
+          <div>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="cursor-pointer"
+              onClick={handleLogout}
+            >
+              <LogOut />
+            </Button>
           </div>
         </CardHeader>
         <CardContent>
@@ -227,11 +250,10 @@ function RouteComponent() {
                 </Button>
               </div>
               <div className="flex flex-col gap-y-2">
-                {friends.map((friend, idx) => (
+                {friendsList.map((friend) => (
                   <FriendEntry
                     key={friend.id}
                     friend={friend}
-                    isConnected={idx % 2 === 0}
                   />
                 ))}
               </div>

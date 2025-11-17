@@ -14,7 +14,7 @@ import { User } from './User';
 export type FriendshipStatus = 'pending' | 'accepted' | 'blocked';
 
 @Entity('friendships')
-@Index(['user', 'friend'], { unique: true })
+@Index(['userId', 'friendId'], { unique: true })
 export class Friendship {
   @PrimaryGeneratedColumn()
   id!: number;
