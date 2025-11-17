@@ -31,11 +31,10 @@ export const FriendService = {
   },
   deleteFriend: async (username: string, friendToDelete: string): Promise<void> => {
     const token = useAuthStore.getState().token;
-    const response = await fetch(`${API_URL}/${friendsEndpointPrefix}`, {
+    await fetch(`${API_URL}/${friendsEndpointPrefix}`, {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
       body: JSON.stringify({ username, friendToDelete }),
     });
-    return handleResponse<void>(response);
   }
 };
