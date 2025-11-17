@@ -42,7 +42,7 @@ function RouteComponent() {
   const [gameRooms, setGameRooms] = useState<GameRoom[]>([]);
   const [friendsList, setFriendsList] = useState<Player[]>([]);
 
-  const player = useMainStore((state) => state.player)!;
+  const player = useMainStore((state) => state.player) || { name: 'alejo', totalWins: 0, totalGames: 0 };
 
   useEffect(() => {
     const fetchGameRooms = async () => {
@@ -58,7 +58,7 @@ function RouteComponent() {
   }, []);
 
   const [gameRoom, setGameRoom] = useState('');
-  const [friendId, setFriendId] = useState('');
+  const [friendName, setFriendName] = useState('');
   const [isAddingFriend, setIsAddingFriend] = useState(false);
   const [showAddFriendDialog, setShowAddFriendDialog] = useState(false);
 
@@ -96,36 +96,21 @@ function RouteComponent() {
   }
 
   async function handleAddFriend() {
-    if (!friendId.trim()) {
-      toast.error('Missing friend ID', {
-        description: 'Please enter a friend ID to send a request.'
-      });
-      return;
-    }
-
-    const friendIdNumber = parseInt(friendId.trim());
-    if (isNaN(friendIdNumber)) {
-      toast.error('Invalid friend ID', {
-        description: 'Friend ID must be a valid number.'
-      });
-      return;
-    }
-
-    if (friendIdNumber === parseInt(player.id)) {
-      toast.error('Invalid friend request', {
-        description: 'You cannot add yourself as a friend.'
+    if (!friendName.trim()) {
+      toast.error('Missing friend username', {
+        description: 'Please enter a friend username to send a request.'
       });
       return;
     }
 
     setIsAddingFriend(true);
     try {
-      const result = await FriendService.addFriend(parseInt(player.id), friendIdNumber);
+      const result = await FriendService.addFriend(player.name, friendName.trim());
       if (result.success) {
-        toast.success('Friend request sent! 🎉', {
-          description: `Request sent to user ${friendIdNumber}. Status: ${result.friendship?.status || 'pending'}`
+        toast.success('You\'ve got a new friend! 🎉', {
+          description: `You are now friends with ${friendName.trim()}. Enjoy battling together!`
         });
-        setFriendId('');
+        setFriendName('');
         setShowAddFriendDialog(false);
       } else {
         toast.error('Failed to send friend request', {
@@ -138,6 +123,8 @@ function RouteComponent() {
       });
     } finally {
       setIsAddingFriend(false);
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      window.location.reload();
     }
   }
 
@@ -239,9 +226,9 @@ function RouteComponent() {
             </TabsList>
             <TabsContent value="friends" className="space-y-4 pt-4">
               <div className="w-full">
-                <Button 
-                  variant="outline" 
-                  size="default" 
+                <Button
+                  variant="outline"
+                  size="default"
                   className="w-full flex items-center justify-center gap-2 h-10 border-2 border-dashed border-gray-300 hover:border-gray-400 text-gray-700 hover:text-gray-900 bg-white hover:bg-gray-50"
                   onClick={() => setShowAddFriendDialog(true)}
                 >
@@ -260,7 +247,7 @@ function RouteComponent() {
             </TabsContent>
             <TabsContent value="pastGames">
               <div className="flex flex-col gap-y-2 @container">
-                {gameRooms.map((room) => (
+                {gameRooms.filter(g => g.player1 === player.name || g.player2 === player.name).map((room) => (
                   <GameRoomEntry key={room.id} room={room} />
                 ))}
               </div>
@@ -276,16 +263,16 @@ function RouteComponent() {
             <DialogTitle>Add a new friend</DialogTitle>
           </DialogHeader>
           <Input
-            value={friendId}
-            onChange={(e) => setFriendId(e.target.value)}
+            value={friendName}
+            onChange={(e) => setFriendName(e.target.value)}
             type="text"
-            placeholder="Enter friend's ID (e.g. 123)"
+            placeholder="Enter friend's username"
             required
           />
           <DialogFooter>
             <Button
               className="cursor-pointer"
-              disabled={friendId.trim() === '' || isAddingFriend}
+              disabled={friendName.trim() === '' || isAddingFriend}
               onClick={handleAddFriend}
             >
               {isAddingFriend ? 'Sending...' : 'Send Friend Request'}

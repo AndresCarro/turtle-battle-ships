@@ -4,7 +4,7 @@ export interface DeleteFriendsResponse {
 
 export interface DeleteFriendsRequest {
   username: string;          
-  friendToDelete: string;    
+  friendToDelete: string;
 }
 
 export interface ErrorResponse {

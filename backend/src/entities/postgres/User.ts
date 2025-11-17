@@ -6,12 +6,12 @@ export class User {
     @PrimaryGeneratedColumn()
     id!: number;
 
-    @Column()
+    @Column({ unique: true })
     name!: string;
 
-    @Column({ name: 'total_games', default: 0 })
+    @Column({ default: 0 })
     totalGames!: number;
 
-    @Column({ name: 'total_wins', default: 0 })
+    @Column({ default: 0 })
     totalWins!: number;
 }

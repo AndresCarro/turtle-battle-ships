@@ -396,19 +396,26 @@ module "rest_api" {
       enable_cors  = true
     },
     {
+      path_part    = "friends"
+      http_methods = ["POST"]
+      lambda_arn   = module.lambda_functions["turtle-battleships-add-friend"].function_invoke_arn
+      lambda_name  = module.lambda_functions["turtle-battleships-add-friend"].function_name
+      enable_cors  = true
+    },
+    {
+      path_part    = "friends"
+      http_methods = ["DELETE"]
+      lambda_arn   = module.lambda_functions["turtle-battleships-delete-friend"].function_invoke_arn
+      lambda_name  = module.lambda_functions["turtle-battleships-delete-friend"].function_name
+      enable_cors  = true
+    },
+    {
       path_part    = "callback"
       http_methods = ["GET"]
       lambda_arn   = module.auth_callback_lambda.function_invoke_arn
       lambda_name  = module.auth_callback_lambda.function_name
       enable_cors  = false # No CORS needed for redirect endpoints
     },
-    {
-      path_part    = "friends"
-      http_methods = ["POST"]
-      lambda_arn   = module.lambda_functions["turtle-battleships-add-friend"].function_invoke_arn
-      lambda_name  = module.lambda_functions["turtle-battleships-add-friend"].function_name
-      enable_cors  = true
-    }
   ]
 
   # CloudWatch logging configuration
@@ -470,7 +477,7 @@ resource "aws_cognito_user_pool_client" "app" {
 
 resource "aws_cognito_user_pool_domain" "hosted" {
   count        = var.cognito_config.enabled ? 1 : 0
-  domain       = "${var.project_name}"
+  domain       = "${var.cognito_config.domain_name}"
   user_pool_id = aws_cognito_user_pool.main[0].id
 }
 

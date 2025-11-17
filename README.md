@@ -578,7 +578,6 @@ After this, copy the `backend_url` output and set it in the `terraform.tfvars` f
 cognito_config = {
   enabled       = true
   callback_url = "https://<backend_url>/callback"
-  logout_url   = ""
 }
 ```
 

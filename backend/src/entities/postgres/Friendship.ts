@@ -6,7 +6,6 @@ import {
   UpdateDateColumn,
   ManyToOne,
   JoinColumn,
-  Index,
 } from 'typeorm';
 import { User } from './User';
 
@@ -14,23 +13,15 @@ import { User } from './User';
 export type FriendshipStatus = 'pending' | 'accepted' | 'blocked';
 
 @Entity('friendships')
-@Index(['userId', 'friendId'], { unique: true })
 export class Friendship {
   @PrimaryGeneratedColumn()
   id!: number;
 
-  @Column({ name: 'user_id' })
-  userId!: number;
+  @Column({ name: 'user_name' })
+  userName!: string;
 
-  @Column({ name: 'friend_id' })
-  friendId!: number;
-
-  @Column({
-    type: 'enum',
-    enum: ['pending', 'accepted', 'blocked'],
-    default: 'pending',
-  })
-  status!: FriendshipStatus;
+  @Column({ name: 'friend_name' })
+  friendName!: string;
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt!: Date;
@@ -39,10 +30,10 @@ export class Friendship {
   updatedAt!: Date;
 
   @ManyToOne(() => User, { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'user_id' })
+  @JoinColumn({ name: 'user_name', referencedColumnName: 'name' })
   user!: User;
 
   @ManyToOne(() => User, { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'friend_id' })
+  @JoinColumn({ name: 'friend_name', referencedColumnName: 'name' })
   friend!: User;
 }

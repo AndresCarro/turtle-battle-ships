@@ -26,7 +26,7 @@ export const handler = async (
 
     const requestBody: AddFriendRequest = JSON.parse(event.body);
 
-    if (!requestBody.userId || !requestBody.friendId) {
+    if (!requestBody.userName || !requestBody.friendName) {
       return {
         statusCode: 400,
         headers: {
@@ -34,7 +34,7 @@ export const handler = async (
           "Access-Control-Allow-Origin": "*",
         },
         body: JSON.stringify({
-          error: "userId and friendId are required",
+          error: "userName and friendName are required",
         }),
       };
     }
@@ -46,9 +46,8 @@ export const handler = async (
       message: "Friend request sent successfully",
       friendship: {
         id: friendship.id,
-        userId: friendship.user_id,
-        friendId: friendship.friend_id,
-        status: friendship.status,
+        userName: friendship.user_name,
+        friendName: friendship.friend_name,
         createdAt: friendship.created_at.toISOString(),
       },
     };

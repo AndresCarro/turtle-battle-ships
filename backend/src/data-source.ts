@@ -2,12 +2,6 @@ import 'reflect-metadata';
 import { DataSource } from 'typeorm';
 import { GamePostgres } from './entities/postgres/Game';
 import { User } from './entities/postgres/User';
-<<<<<<< HEAD
-=======
-import { Friendship } from './entities/postgres/Friendship';
-
-import 'reflect-metadata';
->>>>>>> master
 import { GameReplayPostgres } from './entities/postgres/GameReplay';
 import { Friendship } from './entities/postgres/Friendship';
 

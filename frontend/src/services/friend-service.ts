@@ -1,3 +1,4 @@
+import { useAuthStore } from '@/store/auth-store';
 import { API_URL, handleResponse } from './api-utils';
 
 export interface AddFriendRequest {
@@ -10,9 +11,8 @@ export interface AddFriendResponse {
   message: string;
   friendship?: {
     id: number;
-    userId: number;
-    friendId: number;
-    status: 'pending' | 'accepted' | 'blocked';
+    userName: number;
+    friendName: number;
     createdAt: string;
   };
 }
@@ -20,12 +20,22 @@ export interface AddFriendResponse {
 const friendsEndpointPrefix = 'friends';
 
 export const FriendService = {
-  addFriend: async (userId: number, friendId: number): Promise<AddFriendResponse> => {
+  addFriend: async (userName: string, friendName: string): Promise<AddFriendResponse> => {
+    const token = useAuthStore.getState().token;
     const response = await fetch(`${API_URL}/${friendsEndpointPrefix}`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userId, friendId }),
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ userName, friendName }),
     });
     return handleResponse<AddFriendResponse>(response);
   },
+  deleteFriend: async (username: string, friendToDelete: string): Promise<void> => {
+    const token = useAuthStore.getState().token;
+    const response = await fetch(`${API_URL}/${friendsEndpointPrefix}`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ username, friendToDelete }),
+    });
+    return handleResponse<void>(response);
+  }
 };

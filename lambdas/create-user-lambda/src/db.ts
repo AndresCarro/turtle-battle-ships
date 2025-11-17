@@ -30,24 +30,51 @@ function getPool(): Pool {
  */
 export async function createUser(username: string): Promise<User> {
   const client: PoolClient = await getPool().connect();
-
   try {
-    // Insert new user
-    const insertQuery = `
-      INSERT INTO "user" (name, "totalGames", "totalWins")
-      VALUES ($1, $2, $3)
-      RETURNING id, name, "totalGames", "totalWins"
-    `;
+    // Use an explicit transaction so the lookup and possible insert are atomic.
+    await client.query("BEGIN");
+    try {
+      // Try to find existing user (locking the row if present to avoid races)
+      const selectQuery = `
+        SELECT id, name, "totalGames", "totalWins"
+        FROM "user"
+        WHERE name = $1
+        FOR UPDATE
+      `;
 
-    const result = await client.query(insertQuery, [username, 0, 0]);
-    const newUser = result.rows[0];
+      const selectResult = await client.query(selectQuery, [username]);
+      if (selectResult && selectResult.rowCount && selectResult.rowCount > 0) {
+        const existing = selectResult.rows[0];
+        await client.query("COMMIT");
+        return {
+          id: existing.id,
+          name: existing.name,
+          totalGames: existing.totalGames,
+          totalWins: existing.totalWins,
+        };
+      }
 
-    return {
-      id: newUser.id,
-      name: newUser.name,
-      totalGames: newUser.totalGames,
-      totalWins: newUser.totalWins,
-    };
+      // Not found — insert new user
+      const insertQuery = `
+        INSERT INTO "user" (name, "totalGames", "totalWins")
+        VALUES ($1, $2, $3)
+        RETURNING id, name, "totalGames", "totalWins"
+      `;
+
+      const insertResult = await client.query(insertQuery, [username, 0, 0]);
+      const newUser = insertResult.rows[0];
+
+      await client.query("COMMIT");
+      return {
+        id: newUser.id,
+        name: newUser.name,
+        totalGames: newUser.totalGames,
+        totalWins: newUser.totalWins,
+      };
+    } catch (err) {
+      await client.query("ROLLBACK");
+      throw err;
+    }
   } finally {
     client.release();
   }

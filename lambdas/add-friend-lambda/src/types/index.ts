@@ -1,6 +1,6 @@
 export interface AddFriendRequest {
-  userId: number;
-  friendId: number;
+  userName: string;
+  friendName: string;
 }
 
 export interface AddFriendResponse {
@@ -8,18 +8,16 @@ export interface AddFriendResponse {
   message: string;
   friendship?: {
     id: number;
-    userId: number;
-    friendId: number;
-    status: 'pending' | 'accepted' | 'blocked';
+    userName: string;
+    friendName: string;
     createdAt: string;
   };
 }
 
 export interface FriendshipRecord {
   id: number;
-  user_id: number;
-  friend_id: number;
-  status: 'pending' | 'accepted' | 'blocked';
+  user_name: string;
+  friend_name: string;
   created_at: Date;
   updated_at: Date;
 }

@@ -217,10 +217,12 @@ variable "cognito_config" {
   description = "Configuration for AWS Cognito"
   type = object({
     enabled       = bool
+    domain_name   = string
     callback_url  = string
   })
   default = {
     enabled       = false
+    domain_name   = "turtle-battleships-sample"
     callback_url  = ""
   }
 }

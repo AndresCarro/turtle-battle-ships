@@ -4,7 +4,6 @@ import { Input } from '@/components/ui/input';
 import { formatTime } from '@/utils/date';
 import { cn } from '@/utils/ui';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
 import type { Message } from '@/types';
 import { useState } from 'react';
 
@@ -35,7 +34,6 @@ export function Chat({
           <h2 className="font-semibold text-card-foreground">
             {opponentUsername}
           </h2>
-          <Badge variant="success">Online</Badge>
         </div>
       </div>
       <div className="flex-1 overflow-y-auto p-6 space-y-4">

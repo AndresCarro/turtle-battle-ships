@@ -32,47 +32,12 @@ export async function deleteFriendship(
   const client: PoolClient = await getPool().connect();
 
   try {
-    await client.query("BEGIN");
-
-    const userQuery = `SELECT id FROM "user" WHERE name = $1`;
-
-    const currentUserRes = await client.query(userQuery, [currentUsername]);
-    const userToDeleteRes = await client.query(userQuery, [usernameToDelete]);
-
-    if (currentUserRes.rowCount === 0 || userToDeleteRes.rowCount === 0) {
-      throw new Error("Friendship deletion failed: user not found");
-    }
-
-    const currentUserId = currentUserRes.rows[0].id;
-    const deleteUserId = userToDeleteRes.rows[0].id;
-
-    const friendshipQuery = `
-      SELECT id 
-      FROM friendships
-      WHERE (user_id = $1 AND friend_id = $2)
-         OR (user_id = $2 AND friend_id = $1)
-    `;
-
-    const friendshipRes = await client.query(friendshipQuery, [
-      currentUserId,
-      deleteUserId,
-    ]);
-
-    if (friendshipRes.rowCount === 0) {
-      throw new Error("Friendship deletion failed: user not found");
-    }
-
     const deleteQuery = `
       DELETE FROM friendships
-      WHERE (user_id = $1 AND friend_id = $2)
-         OR (user_id = $2 AND friend_id = $1)
+      WHERE (user_name = $1 AND friend_name = $2)
     `;
-
-    await client.query(deleteQuery, [currentUserId, deleteUserId]);
-
-    await client.query("COMMIT");
+    await client.query(deleteQuery, [currentUsername, usernameToDelete]);
   } catch (error) {
-    await client.query("ROLLBACK");
     throw error;
   } finally {
     client.release();

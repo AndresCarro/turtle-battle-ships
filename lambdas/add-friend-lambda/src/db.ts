@@ -22,17 +22,17 @@ function getPool(): Pool {
 }
 
 export async function addFriend(request: AddFriendRequest): Promise<FriendshipRecord> {
-  const { userId, friendId } = request;
+  const { userName, friendName } = request;
 
-  if (userId === friendId) {
+  if (userName === friendName) {
     throw new Error('Cannot add yourself as a friend');
   }
 
   const client: PoolClient = await getPool().connect();
   try {
     const usersExist = await client.query(
-      'SELECT id FROM "user" WHERE id IN ($1, $2)',
-      [userId, friendId]
+      'SELECT name FROM "user" WHERE name IN ($1, $2)',
+      [userName, friendName]
     );
 
     if (usersExist.rows.length !== 2) {
@@ -40,26 +40,19 @@ export async function addFriend(request: AddFriendRequest): Promise<FriendshipRe
     }
 
     const existingFriendship = await client.query(
-      'SELECT * FROM friendships WHERE (user_id = $1 AND friend_id = $2) OR (user_id = $2 AND friend_id = $1)',
-      [userId, friendId]
+      'SELECT * FROM friendships WHERE user_name = $1 AND friend_name = $2',
+      [userName, friendName]
     );
 
     if (existingFriendship.rows.length > 0) {
-      const friendship = existingFriendship.rows[0];
-      if (friendship.status === 'pending') {
-        throw new Error('Friend request already pending');
-      } else if (friendship.status === 'accepted') {
-        throw new Error('Users are already friends');
-      } else if (friendship.status === 'blocked') {
-        throw new Error('Cannot add friend - relationship blocked');
-      }
+      return existingFriendship.rows[0];
     }
 
     const result = await client.query(
-      `INSERT INTO friendships (user_id, friend_id, status, created_at, updated_at)
+      `INSERT INTO friendships (user_name, friend_name, created_at, updated_at)
        VALUES ($1, $2, 'pending', NOW(), NOW())
        RETURNING *`,
-      [userId, friendId]
+      [userName, friendName]
     );
 
     return result.rows[0];
