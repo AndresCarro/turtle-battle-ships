@@ -12,20 +12,6 @@ export const handler = async (
   context: Context
 ): Promise<APIGatewayProxyResult> => {
   try {
-    // Parse request body
-    if (!event.body) {
-      return {
-        statusCode: 400,
-        headers: {
-          "Content-Type": "application/json",
-          "Access-Control-Allow-Origin": "*",
-        },
-        body: JSON.stringify({
-          error: "Request body is required",
-        }),
-      };
-    }
-
     const username = event.queryStringParameters?.username;
 
     if (!username) {
