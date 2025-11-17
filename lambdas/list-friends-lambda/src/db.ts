@@ -31,7 +31,7 @@ export async function getFriendsList(username: string): Promise<User[]> {
   try {
     const query = `
       SELECT f.id, f.user_name, f.friend_name, f.created_at, f.updated_at,
-             friend.id as friend_id_pk, friend.total_games, friend.total_wins
+             friend.id as friend_id_pk, friend."totalGames", friend."totalWins"
       FROM friendships f
       INNER JOIN "user" u ON f.user_name = u.name
       INNER JOIN "user" friend ON f.friend_name = friend.name
@@ -45,8 +45,8 @@ export async function getFriendsList(username: string): Promise<User[]> {
       (row) => ({
         id: row.friend_id_pk,
         name: row.friend_name,
-        totalGames: row.total_games,
-        totalWins: row.total_wins,
+        totalGames: row.totalGames,
+        totalWins: row.totalWins,
       })
     );
 
