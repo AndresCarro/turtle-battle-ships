@@ -50,7 +50,7 @@ export async function addFriend(request: AddFriendRequest): Promise<FriendshipRe
 
     const result = await client.query(
       `INSERT INTO friendships (user_name, friend_name, created_at, updated_at)
-       VALUES ($1, $2, 'pending', NOW(), NOW())
+       VALUES ($1, $2, NOW(), NOW())
        RETURNING *`,
       [userName, friendName]
     );
