@@ -21,6 +21,7 @@ export const UserService = {
       method: 'GET',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
     });
-    return handleResponse<Player[]>(response);
+    const res = await handleResponse<{friendsList: Player[]}>(response);
+    return res.friendsList
   }
 };
