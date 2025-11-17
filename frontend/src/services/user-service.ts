@@ -17,10 +17,9 @@ export const UserService = {
   },
   getFriendsListFromUser: async (username: string): Promise<Player[]> => {
     const token = useAuthStore.getState().token;
-    const response = await fetch(`${API_URL}/${friendsEndpointPrefix}`, {
+    const response = await fetch(`${API_URL}/${friendsEndpointPrefix}?username=${username}`, {
       method: 'GET',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-      body: JSON.stringify({ username }),
     });
     return handleResponse<Player[]>(response);
   }

@@ -26,9 +26,9 @@ export const handler = async (
       };
     }
 
-    const friendsListRequest: FriendsListRequest = JSON.parse(event.body);
+    const username = event.queryStringParameters?.username;
 
-    if (!friendsListRequest.username) {
+    if (!username) {
       return {
         statusCode: 400,
         headers: {
@@ -36,12 +36,12 @@ export const handler = async (
           "Access-Control-Allow-Origin": "*",
         },
         body: JSON.stringify({
-          error: "'username' in request body is required",
+          error: "'username' as query param is required",
         }),
       };
     }
 
-    const friends = await getFriendsList(friendsListRequest.username);
+    const friends = await getFriendsList(username);
 
     const response: FriendsListResponse = {
       friendsList: friends,
