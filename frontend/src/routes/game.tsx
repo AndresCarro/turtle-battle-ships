@@ -71,14 +71,37 @@ function RouteComponent() {
       gameState.shots?.filter((shot) => shot.player !== player.name) ?? []
     )
   ) {
+    let lastShot = null;
     if (gameState.currentTurn === player.name) {
-      const opponentShots =
-        gameState.shots?.filter((shot) => shot.player !== player.name) ?? [];
+      const opponentShots = (gameState.shots?.filter((shot) => shot.player !== player.name) ?? [])
+        .sort((a, b) => {
+          const idA = typeof a.id === 'number' ? a.id : Number(a.id);
+          const idB = typeof b.id === 'number' ? b.id : Number(b.id);
+          return idA - idB;
+        });
       setPlayerBoard(placeShotsOnBoard(playerBoard, opponentShots));
+      lastShot = opponentShots[opponentShots.length - 1];
     } else {
-      const playerShots =
-        gameState.shots?.filter((shot) => shot.player === player.name) ?? [];
+      const playerShots = (gameState.shots?.filter((shot) => shot.player === player.name) ?? [])
+        .sort((a, b) => {
+          const idA = typeof a.id === 'number' ? a.id : Number(a.id);
+          const idB = typeof b.id === 'number' ? b.id : Number(b.id);
+          return idA - idB;
+        });
       setOpponentBoard(placeShotsOnBoard(opponentBoard, playerShots));
+      lastShot = playerShots[playerShots.length - 1];
+    }
+    if (lastShot) {
+      if (lastShot.shotSuccess === 0) {
+        const audio = new Audio("/audio/miss.mp3");
+        audio.play();
+      } else if (lastShot.shotSuccess === 1) {
+        const audio = new Audio("/audio/hit.mp3");
+        audio.play();
+      } else if (lastShot.shotSuccess === 2) {
+        const audio = new Audio("/audio/sunk.mp3");
+        audio.play();
+      }
     }
   }
 
