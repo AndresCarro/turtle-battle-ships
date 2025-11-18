@@ -134,7 +134,7 @@ variable "backend_config" {
     health_check_path     = string
     environment_variables = map(string)
     subnet_names          = list(string)
-    alb_subnet_names      = optional(list(string), [])  # ALB subnets (public for internet-facing ALB)
+    alb_subnet_names      = optional(list(string), []) # ALB subnets (public for internet-facing ALB)
     security_group_ids    = list(string)
     enable_autoscaling    = bool
     autoscaling_min       = number
@@ -193,12 +193,13 @@ variable "events_queue_name" {
 
 variable "video_renderer_lambda" {
   description = "Configuration map for the video renderer lambda"
-  type        = object({
-    function_name         = string
-    dockerfile_path       = string
-    memory_size           = number
-    timeout               = number
-    environment_variables = map(string)
+  type = object({
+    function_name          = string
+    dockerfile_path        = string
+    memory_size            = number
+    ephemeral_storage_size = number
+    timeout                = number
+    environment_variables  = map(string)
   })
 }
 
@@ -216,13 +217,13 @@ variable "video_replays_bucket" {
 variable "cognito_config" {
   description = "Configuration for AWS Cognito"
   type = object({
-    enabled       = bool
-    domain_name   = string
-    callback_url  = string
+    enabled      = bool
+    domain_name  = string
+    callback_url = string
   })
   default = {
-    enabled       = false
-    domain_name   = "turtle-battleships-sample"
-    callback_url  = ""
+    enabled      = false
+    domain_name  = "turtle-battleships-sample"
+    callback_url = ""
   }
 }

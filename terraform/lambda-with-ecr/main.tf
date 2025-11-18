@@ -108,6 +108,13 @@ resource "aws_lambda_function" "function" {
     }
   }
 
+  dynamic "ephemeral_storage" {
+    for_each = (var.ephemeral_storage_size != null && var.ephemeral_storage_size > 0) ? [var.ephemeral_storage_size] : []
+    content {
+      size = ephemeral_storage.value
+    }
+  }
+
   tags = merge(
     var.tags,
     {

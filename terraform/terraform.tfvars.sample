@@ -225,11 +225,12 @@ video_replays_bucket = {
 
 # Video renderer lambda configuration
 video_renderer_lambda = {
-  function_name         = "turtle-battleships-video-renderer"
-  dockerfile_path       = "../lambdas/video-renderer-lambda"
-  memory_size           = 1024
-  timeout               = 900
-  environment_variables = {
+  function_name          = "turtle-battleships-video-renderer"
+  dockerfile_path        = "../lambdas/video-renderer-lambda"
+  memory_size            = 2048
+  ephemeral_storage_size = 1024
+  timeout                = 900
+  environment_variables  = {
     INPUT_BUCKET = "turtle-battleships-text-replays-sample"
     OUTPUT_BUCKET = "turtle-battleships-video-replays-sample"
   }

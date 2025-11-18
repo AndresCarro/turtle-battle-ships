@@ -1,3 +1,9 @@
+variable "ephemeral_storage_size" {
+  type        = number
+  default     = null
+  description = "Optional ephemeral storage size (MB) for the Lambda. Set > 0 to enable the ephemeral_storage block."
+}
+
 variable "function_name" {
   description = "Name of the Lambda function"
   type        = string

@@ -622,6 +622,7 @@ module "lambda_video_renderer" {
 
   memory_size = lookup(var.video_renderer_lambda, "memory_size", 512)
   timeout     = lookup(var.video_renderer_lambda, "timeout", 60)
+  ephemeral_storage_size = lookup(var.video_renderer_lambda, "ephemeral_storage_size", 512)
 
   environment_variables = merge(
     lookup(var.video_renderer_lambda, "environment_variables", {}),
