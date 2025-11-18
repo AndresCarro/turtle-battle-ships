@@ -49,7 +49,7 @@ export function FriendEntry({
           <Badge variant="secondary">
             <ChartLine className="size-4" />
             <span className="font-medium">
-              Ratio: {(friend.totalWins / friend.totalGames).toFixed(2)}
+              Ratio: {(friend.totalGames > 0 ? (friend.totalWins / friend.totalGames) : 0).toFixed(2)}
             </span>
           </Badge>
         </div>

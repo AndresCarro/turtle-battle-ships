@@ -19,7 +19,7 @@ export const handler = async (
 
     for (const game of gameRooms) {
       if (game.s3Key) {
-        game.replayUrl = await getPresignedUrl(game.s3Key);
+        game.replayUrl = await getPresignedUrl(game.s3Key.split(".")[0] + ".mp4");
       }
     }
 

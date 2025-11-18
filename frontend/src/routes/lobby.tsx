@@ -23,6 +23,7 @@ import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router';
 import { Ban, ChartLine, Crown, LogOut, Plus, RefreshCw } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
+import { GameRoomStatuses } from '@/constants';
 
 export const Route = createFileRoute('/lobby')({
   beforeLoad: () => {
@@ -41,8 +42,9 @@ function RouteComponent() {
   const clearAuthStore = useAuthStore((state) => state.clearToken);
   const [gameRooms, setGameRooms] = useState<GameRoom[]>([]);
   const [friendsList, setFriendsList] = useState<Player[]>([]);
+  const [playerData, setPlayerData] = useState<{ totalGames: number, totalWins: number }>({ totalGames: 0, totalWins: 0 });
 
-  const player = useMainStore((state) => state.player) || { name: 'alejo', totalWins: 0, totalGames: 0 };
+  const player = useMainStore((state) => state.player)!;
 
   useEffect(() => {
     const fetchGameRooms = async () => {
@@ -53,8 +55,17 @@ function RouteComponent() {
       setFriendsList(await UserService.getFriendsListFromUser(player.name))
     }
 
+    const fetchPlayerData = async () => {
+      // This is horrible, I know, but it works and is much better than creating a new lambda
+      const data = await UserService.createUser(player.name);
+      if (data) {
+        setPlayerData({ totalGames: data.totalGames, totalWins: data.totalWins });
+      }
+    }
+
     fetchGameRooms();
     fetchFriendsList();
+    fetchPlayerData();
   }, []);
 
   const [gameRoom, setGameRoom] = useState('');
@@ -187,18 +198,18 @@ function RouteComponent() {
             <div className="flex items-center gap-2">
               <Badge variant="secondary">
                 <Crown className="size-4" />
-                <span className="font-medium">{player.totalWins} wins</span>
+                <span className="font-medium">{playerData.totalWins} wins</span>
               </Badge>
               <Badge variant="secondary">
                 <Ban className="size-4" />
                 <span className="font-medium">
-                  {player.totalGames - player.totalWins} loses
+                  {playerData.totalGames - playerData.totalWins} loses
                 </span>
               </Badge>
               <Badge variant="secondary">
                 <ChartLine className="size-4" />
                 <span className="font-medium">
-                  Ratio: {(player.totalWins / player.totalGames).toFixed(2)}
+                  Ratio: {(playerData.totalGames > 0 ? (playerData.totalWins / playerData.totalGames) : 0).toFixed(2)}
                 </span>
               </Badge>
             </div>
@@ -247,9 +258,14 @@ function RouteComponent() {
             </TabsContent>
             <TabsContent value="pastGames">
               <div className="flex flex-col gap-y-2 @container">
-                {gameRooms.filter(g => g.player1 === player.name || g.player2 === player.name).map((room) => (
-                  <GameRoomEntry key={room.id} room={room} />
-                ))}
+                {
+                  gameRooms
+                    .filter(g => g.status === GameRoomStatuses.FINISHED)
+                    .filter(g => g.player1 === player.name || g.player2 === player.name)
+                    .map((room) => (
+                      <GameRoomEntry key={room.id} room={room} />
+                    ))
+                }
               </div>
             </TabsContent>
           </Tabs>

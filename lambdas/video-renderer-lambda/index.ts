@@ -107,7 +107,6 @@ export async function handler(event: SQSEvent) {
       }
     } else {
       console.warn("No S3 key found in SQS record body");
-      throw new Error("No S3 key found in SQS record body");
     }
   }
 
