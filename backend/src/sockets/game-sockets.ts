@@ -161,7 +161,7 @@ export const setupGameSockets = (io: Server) => {
       const connection = gameConnections.get(socket.id);
       if (connection) {
         const roomName = `game-${connection.gameId}`;
-        socket.to(roomName).emit('message-received', {
+        io.to(roomName).emit('message-received', {
           id: generateUniqueId(),
           sender: connection.username,
           content: data.message,

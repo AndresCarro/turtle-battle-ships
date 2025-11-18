@@ -84,6 +84,15 @@ export function Chat({
               value={newMessage}
               onChange={(e) => setNewMessage(e.target.value)}
               placeholder="Type a message..."
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  if (newMessage.trim() !== "") {
+                    handleSendMessage(newMessage);
+                    setNewMessage("");
+                  }
+                }
+              }}
             />
           </div>
           <Button
