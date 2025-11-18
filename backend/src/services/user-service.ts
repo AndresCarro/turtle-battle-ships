@@ -32,7 +32,7 @@ export const UserService = {
 
     if (!user) {
       throw Error(
-        `Could not find username (${username}) to increment total games played`
+        `Could not find username (${username}) to increment total wins`
       );
     }
 
@@ -42,7 +42,6 @@ export const UserService = {
       user.totalWins = user.totalWins + 1;
     }
 
-    user.totalWins = user.totalWins + 1;
     return userRepository.save(user);
   },
 };

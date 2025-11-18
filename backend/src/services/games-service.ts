@@ -269,7 +269,7 @@ export const postShotService = async (
     await UserService.incrementUserTotalGames(opponentUsername);
     await UserService.incrementUserTotalWins(username);
 
-    saveGameReplay(game.id);
+    await saveGameReplay(game.id);
     return shot;
   }
 
